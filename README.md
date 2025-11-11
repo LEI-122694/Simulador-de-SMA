@@ -1,1 +1,1 @@
-# -Simulador-de-SMA
+# Simulador-de-SMA
