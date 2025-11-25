@@ -5,7 +5,7 @@ from ExplorerAgent import ExplorerAgent
 
 HEIGHT = 10
 WIDTH = 10
-OBSTACLE_RATIO = 0.25  # 20% of cells
+OBSTACLE_RATIO = 0.30  # 20% of cells
 
 
 def _is_reachable(start, goal, obstacles):
@@ -73,9 +73,18 @@ def setup_lighthouse():
         start_B = random.choice(free)
 
         # -------------------------------------------------
-        # 5) Ensure BOTH agents can reach the goal
-        # -------------------------------------------------
-        if _is_reachable(start_A, goal, obstacles) and _is_reachable(start_B, goal, obstacles):
+        # 5) Ensure BOTH agents can reach the goal AND are far enough
+        min_dist = 14  # <--- ajusta aqui a dificuldade
+
+        def manhattan(a, b):
+            return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+        if (
+                _is_reachable(start_A, goal, obstacles) and
+                _is_reachable(start_B, goal, obstacles) and
+                manhattan(start_A, goal) >= min_dist and
+                manhattan(start_B, goal) >= min_dist
+        ):
             break
         # otherwise regenerate map
 
