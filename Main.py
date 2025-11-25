@@ -1,5 +1,5 @@
 import time
-from maze import setup_maze
+from Maze import setup_maze
 from Lighthouse import setup_lighthouse
 
 class MotorDeSimulacao:
