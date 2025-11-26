@@ -105,7 +105,5 @@ def setup_lighthouse():
     a1 = LighthouseAgent("A", env, start_pos=start_A)
     a2 = LighthouseAgent("B", env, start_pos=start_B)
 
-    env.add_agent(a1)
-    env.add_agent(a2)
 
     return env, [a1, a2]
