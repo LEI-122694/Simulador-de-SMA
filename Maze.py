@@ -47,11 +47,14 @@ def setup_maze():
         mode="maze"
     )
 
-    # place agents in valid, open cells
-    a1 = MazeAgent("A", env, start_pos=(1, 1))
-    a2 = MazeAgent("B", env, start_pos=(7, 8))
+    # Both agents start at the SAME valid open cell, e.g. (1,1)
+    start_pos = (0, 5)
 
-    env.add_agent(a1)
-    env.add_agent(a2)
+    a1 = MazeAgent("A", env, start_pos=start_pos)
+    a2 = MazeAgent("B", env, start_pos=start_pos)
+
+    # Do NOT add them again here; Agent.__init__ already did it.
+    # env.add_agent(a1)
+    # env.add_agent(a2)
 
     return env, [a1, a2]
