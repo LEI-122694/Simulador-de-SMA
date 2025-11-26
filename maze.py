@@ -1,10 +1,10 @@
 from World import World
-from ExplorerAgent import ExplorerAgent
+from MazeAgent import MazeAgent   # ⬅ Já não usamos ExplorerAgent
 
 def setup_maze():
     """
-    Clean, hand-designed professional maze (Option A).
-    9x10 grid, solvable, real-corrior structure.
+    Clean, designed maze.
+    9x10 grid.
     """
 
     walls = {
@@ -24,8 +24,7 @@ def setup_maze():
         (4, 0), (4, 2), (4, 5), (4, 7), (4, 9),
 
         # Row 5
-        (5, 0), (5, 2), (5, 3), (5, 4),
-        (5, 5), (5, 6), (5, 7), (5, 9),
+        (5, 0), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 9),
 
         # Row 6
         (6, 0), (6, 2), (6, 4), (6, 9),
@@ -34,10 +33,11 @@ def setup_maze():
         (7, 0), (7, 4), (7, 6), (7, 7), (7, 9),
 
         # Row 8
-        (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 6), (8, 7), (8, 8), (8, 9)
+        (8, 0), (8, 1), (8, 2), (8, 3), (8, 4),
+        (8, 6), (8, 7), (8, 8), (8, 9)
     }
 
-    goal = (8, 6)
+    goal = (8, 5)   # ⬅ Corrigi: (8,6) estava numa parede!
 
     env = World(
         height=9,
@@ -47,8 +47,11 @@ def setup_maze():
         mode="maze"
     )
 
-    # Agents start in valid walkable positions
-    a1 = ExplorerAgent("A", env, start_pos=(1, 1))
-    a2 = ExplorerAgent("B", env, start_pos=(7, 8))
+    # place agents in valid, open cells
+    a1 = MazeAgent("A", env, start_pos=(1, 1))
+    a2 = MazeAgent("B", env, start_pos=(7, 8))
+
+    env.add_agent(a1)
+    env.add_agent(a2)
 
     return env, [a1, a2]

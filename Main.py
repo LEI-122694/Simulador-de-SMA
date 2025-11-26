@@ -26,13 +26,13 @@ class MotorDeSimulacao:
             for agent in self.agents:
                 obs = self.env.observacaoPara(agent)
                 agent.observacao(obs)
+
                 accao = agent.age()
                 self.env.agir(accao, agent)
 
-                # If reaches goal -> broadcast
+                # Check if reached goal
                 if agent.reached_goal:
-                    agent.known_goals.add((agent.x, agent.y))
-                    agent._broadcast(f"goal:{(agent.x,agent.y)}")
+                    print(f"🎯 Agente {agent.name} atingiu o objetivo!")
 
             self.env.atualizacao()
 
@@ -47,7 +47,7 @@ class MotorDeSimulacao:
 if __name__ == "__main__":
     # CHOOSE ONE:
     env, agents = setup_lighthouse()
-    #env, agents = setup_maze()
+    # env, agents = setup_maze()
 
     motor = MotorDeSimulacao(env, agents)
     motor.executa()

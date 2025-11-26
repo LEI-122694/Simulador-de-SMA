@@ -2,9 +2,9 @@ import random
 
 class World:
     """
-    Supports two modes:
-      - 'farol' : agents only see direction to the lighthouse.
-      - 'maze'  : agents see blocked neighbors and the goal.
+    Two modes:
+      - 'farol' : agents only get a compass direction toward the lighthouse.
+      - 'maze'  : agents get blocked neighbors and full goal positions.
     """
 
     def __init__(self, height, width, goals=None, obstacles=None, mode="maze"):
@@ -17,7 +17,8 @@ class World:
         self.step_count = 0
 
     # ------------------------------------------------------------
-
+    # OBSERVATION
+    # ------------------------------------------------------------
     def observacaoPara(self, agente):
         """Return observation depending on mode."""
 
@@ -50,24 +51,27 @@ class World:
         }
 
     # ------------------------------------------------------------
-
     def atualizacao(self):
         self.step_count += 1
 
+    # ------------------------------------------------------------
     def agir(self, accao, agente):
         if accao is None:
             return
+
         nx, ny = accao
+
         if self.is_valid_position(nx, ny):
             agente.x, agente.y = nx, ny
+
             if (nx, ny) in self.goals:
                 agente.reached_goal = True
 
     # ------------------------------------------------------------
-
     def add_agent(self, agent):
         self.agents.append(agent)
 
+    # ------------------------------------------------------------
     def is_valid_position(self, x, y):
         return (
             0 <= x < self.height and
@@ -76,10 +80,16 @@ class World:
         )
 
     def _neighbors4(self, x, y):
-        return [(x-1,y), (x+1,y), (x,y-1), (x,y+1)]
+        return [
+            (x-1, y),
+            (x+1, y),
+            (x, y-1),
+            (x, y+1)
+        ]
 
     # ------------------------------------------------------------
-
+    # DISPLAY (CONSOLE)
+    # ------------------------------------------------------------
     def display(self):
         RED = "\033[91m"
         GREEN = "\033[92m"
@@ -93,22 +103,26 @@ class World:
         for x in range(self.height):
             row_str = CYAN + "|" + RESET
             for y in range(self.width):
+
+                # Obstacles
                 if (x, y) in self.obstacles:
                     row_str += RED + "# " + RESET
-                elif (x, y) in self.goals:
+                    continue
+
+                # Goals
+                if (x, y) in self.goals:
                     row_str += YELLOW + "* " + RESET
+                    continue
+
+                # Agents
+                agent_here = next((a for a in self.agents if (a.x, a.y) == (x, y)), None)
+                if agent_here:
+                    row_str += GREEN + agent_here.name[0].upper() + " " + RESET
                 else:
-                    found_agent = False
-                    for a in self.agents:
-                        if (a.x, a.y) == (x, y):
-                            row_str += GREEN + a.name[0].upper() + " " + RESET
-                            found_agent = True
-                            break
-                    if not found_agent:
-                        row_str += ". "
+                    row_str += ". "
+
             row_str += CYAN + "|" + RESET
             print(row_str)
 
-        bottom = CYAN + "+" + "-" * (self.width * 2) + "+" + RESET
-        print(bottom)
+        print(CYAN + "+" + "-" * (self.width * 2) + "+" + RESET)
         print()
