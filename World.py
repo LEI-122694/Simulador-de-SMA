@@ -16,6 +16,14 @@ class World:
         self.agents = []
         self.step_count = 0
 
+    def is_blocked(self, x, y):
+        """
+        True se for obstáculo ou estiver fora dos limites.
+        """
+        if x < 0 or y < 0 or x >= self.height or y >= self.width:
+            return True
+        return (x, y) in self.obstacles
+
     # ------------------------------------------------------------
     # OBSERVATION
     # ------------------------------------------------------------
@@ -46,8 +54,8 @@ class World:
 
         return {
             "posicao": (agente.x, agente.y),
-            "vizinhos_bloqueados": blocked,
-            "objetivos": list(self.goals)
+            "neighbors": {pos: "obstacle" for pos in blocked},
+            "goals": list(self.goals)
         }
 
     # ------------------------------------------------------------

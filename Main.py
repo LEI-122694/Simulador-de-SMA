@@ -1,5 +1,5 @@
 import time
-from maze import setup_maze
+from Maze import setup_maze
 from Lighthouse import setup_lighthouse
 
 class MotorDeSimulacao:
@@ -46,8 +46,8 @@ class MotorDeSimulacao:
 
 if __name__ == "__main__":
     # CHOOSE ONE:
-    env, agents = setup_lighthouse()
-    # env, agents = setup_maze()
+    #env, agents = setup_lighthouse()
+    env, agents = setup_maze()
 
     motor = MotorDeSimulacao(env, agents)
     motor.executa()

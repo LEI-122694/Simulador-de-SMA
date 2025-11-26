@@ -1,5 +1,5 @@
 from World import World
-from MazeAgent import MazeAgent   # ⬅ Já não usamos ExplorerAgent
+from MazeAgent import MazeAgent
 
 def setup_maze():
     """
@@ -37,7 +37,7 @@ def setup_maze():
         (8, 6), (8, 7), (8, 8), (8, 9)
     }
 
-    goal = (8, 5)   # ⬅ Corrigi: (8,6) estava numa parede!
+    goal = (8, 5)
 
     env = World(
         height=9,
