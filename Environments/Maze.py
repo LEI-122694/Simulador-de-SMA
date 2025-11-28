@@ -1,11 +1,12 @@
-from World import World
-from MazeAgent import MazeAgent
-from RandomMazeGenerator import generate_maze
-import random
+# Maze.py
+from Environments.World import World
+from Agents.MazeAgent import MazeAgent
+from Environments.RandomMazeGenerator import generate_maze
+
 
 def setup_maze():
-    height = 21
-    width  = 21
+    height = 11
+    width  = 11
 
     maze_data = generate_maze(height, width)
     walls = maze_data["walls"]

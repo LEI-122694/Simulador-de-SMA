@@ -18,6 +18,8 @@ class Agent(ABC):
         # Last received observation
         self.current_obs = None
 
+        self.mode = "train"
+
     # ------------------------------------------------------------------
     # Required API (forced by assignment but abstracted here)
     # ------------------------------------------------------------------
@@ -80,3 +82,7 @@ class Agent(ABC):
     # ------------------------------------------------------------------
     def set_position(self, x, y):
         self.x, self.y = x, y
+
+    def set_mode(self, mode):
+        assert mode in ("train", "test")
+        self.mode = mode

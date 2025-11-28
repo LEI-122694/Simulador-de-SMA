@@ -1,6 +1,6 @@
 # LighthouseAgent.py
 import random
-from Agent import Agent
+from Agents.Agent import Agent
 
 class LighthouseAgent(Agent):
     """
@@ -52,6 +52,8 @@ class LighthouseAgent(Agent):
         3) Aleatório entre vizinhos válidos (8 direções)
         4) Nenhum movimento possível
         """
+
+        test_mode = (self.mode == "test")
 
         d = self.current_obs.get("direcao_farol")
         print(f"   [{self.name}] Observed direction: {d}")
@@ -107,7 +109,10 @@ class LighthouseAgent(Agent):
         valid = [n for n in neighbors if self.env.is_valid_position(*n)]
 
         if valid:
-            choice = random.choice(valid)
+            if test_mode:
+                choice = valid[0]  # determinista
+            else:
+                choice = random.choice(valid)
             print(f"   [{self.name}] RANDOM → {choice}")
             return choice
 
