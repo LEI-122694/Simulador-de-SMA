@@ -1,6 +1,7 @@
+# MazeAgent.py
 import random
 from collections import deque
-from Agent import Agent
+from Agents.Agent import Agent
 
 class MazeAgent(Agent):
     """
@@ -157,7 +158,8 @@ class MazeAgent(Agent):
             ("left",  (x, y - 1)),
             ("right", (x, y + 1)),
         ]
-        random.shuffle(directions)
+        if self.mode == "train":
+            random.shuffle(directions)
 
         # Prefer unvisited, non-blocked cells
         for d, (nx, ny) in directions:

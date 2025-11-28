@@ -1,11 +1,12 @@
+# Lighthouse.py
 import random
 from collections import deque
-from World import World
-from LighthouseAgent import LighthouseAgent
+from Environments.World import World
+from Agents.LighthouseAgent import LighthouseAgent
 
 HEIGHT = 10
 WIDTH = 10
-OBSTACLE_RATIO = 0.40     # densidade de obstáculos
+OBSTACLE_RATIO = 0.30     # densidade de obstáculos
 MIN_START_DIST = 14       # distância Manhattan mínima ao farol
 
 
