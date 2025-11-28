@@ -1,15 +1,21 @@
-# MazeAgent.py
 import random
 from collections import deque
 from Agent import Agent
 
 class MazeAgent(Agent):
     """
-    Maze agent:
+    Maze agent (Smart Path Alignment with goal-adjacency sensing):
       - explores the maze from the common start
-      - keeps its own path_from_start as a list of directions
-      - when it reaches the goal, broadcasts that path
-      - when it receives a path, returns to start then follows it
+      - stores its own path_from_start as movement sequence
+      - when it receives the goal path from another agent:
+            1) compute common prefix length k
+            2) my_suffix      = my_path[k:]
+               goal_suffix    = goal_path[k:]
+            3) backtrack_moves = reverse(my_suffix) with opposite dirs
+            4) planned_moves   = backtrack_moves + goal_suffix
+      - always checks if the goal is in an adjacent cell
+      - moves into the goal immediately if detected
+      - no coordinates exchanged, all movement-only communication.
     """
 
     def __init__(self, name, env, start_pos):
@@ -18,12 +24,10 @@ class MazeAgent(Agent):
         self.reached_goal = False
         self.current_obs = None
 
-        self.path_from_start = []   # movement history from start
-        self.mode = "explore"       # explore / follow_plan / wait
+        self.path_from_start = []     # list of movement directions from the start
+        self.mode = "explore"         # explore / follow_plan / wait
 
         self.planned_moves = deque()
-        self.back_steps_remaining = 0
-
         self.visited = set()
 
     # ------------------------------------------------------------
@@ -33,84 +37,119 @@ class MazeAgent(Agent):
         self.current_obs = obs
         pos = obs.get("posicao")
 
-        print(f"   [{self.name}] OBS → position={pos} mode={self.mode}")
+        print(f"   [{self.name}] OBS → pos={pos}, mode={self.mode}")
 
         if pos is not None:
             self.visited.add(pos)
 
+        # Goal detection (standing on the goal)
         goals = obs.get("goals", [])
         if goals and pos == goals[0]:
             if not self.reached_goal:
-                print(f"   [{self.name}] 🎯 Goal detected at {pos}")
+                print(f"   [{self.name}] 🎯 Reached goal!")
             self.reached_goal = True
 
     # ------------------------------------------------------------
-    # COMMUNICATION
+    # COMMUNICATION: prefix alignment + backtracking + suffix
     # ------------------------------------------------------------
     def comunica(self, mensagem, de_agente):
         print(f"   [{self.name}] 📩 Received message from {de_agente.name}: {mensagem}")
 
-        if "path_from_start_to_goal" in mensagem and self.mode == "explore":
-            path_to_goal = mensagem["path_from_start_to_goal"]
+        if "path_from_start_to_goal" not in mensagem:
+            return
 
-            print(f"   [{self.name}] ✔ Processing received goal-path: {path_to_goal}")
+        goal_path = mensagem["path_from_start_to_goal"]
 
-            # Compute reverse path back to start
-            back_path = self._reverse_path(self.path_from_start)
+        print(f"   [{self.name}] ✔ Received goal-path: {goal_path}")
+        print(f"   [{self.name}] 🔍 My own path so far: {self.path_from_start}")
 
-            print(f"   [{self.name}] ↩ Back-to-start path = {back_path}")
-            print(f"   [{self.name}] 🚀 Full plan = back_to_start + to_goal")
+        # Compute the common prefix
+        prefix_len = 0
+        for a, b in zip(self.path_from_start, goal_path):
+            if a == b:
+                prefix_len += 1
+            else:
+                break
 
-            full_plan = back_path + path_to_goal
+        print(f"   [{self.name}] 📏 Common prefix length = {prefix_len}")
 
-            print(f"   [{self.name}] 🧭 Full plan = {full_plan}")
+        my_suffix   = self.path_from_start[prefix_len:]
+        goal_suffix = goal_path[prefix_len:]
 
-            self.back_steps_remaining = len(back_path)
-            self.planned_moves = deque(full_plan)
-            self.mode = "follow_plan"
+        # Reverse my_suffix for backtracking
+        backtrack_moves = [self._opposite(d) for d in reversed(my_suffix)]
+        print(f"   [{self.name}] 🔄 Backtracking moves to rejoin partner path: {backtrack_moves}")
+        print(f"   [{self.name}] 🧭 Then follow partner suffix: {goal_suffix}")
+
+        # Combined plan
+        full_plan = backtrack_moves + goal_suffix
+
+        self.planned_moves = deque(full_plan)
+        self.mode = "follow_plan"
+
+        print(f"   [{self.name}] ✅ Loaded plan of {len(full_plan)} moves.")
 
     # ------------------------------------------------------------
-    # DECISION
+    # DECISION (with priority goal-adjacency detection)
     # ------------------------------------------------------------
     def age(self):
-        # If reached goal
+
+        # ---------------- PRIORITY: goal adjacent check ----------------
+        goals = self.current_obs.get("goals", [])
+        if goals and not self.reached_goal:
+            gx, gy = goals[0]
+            x, y = self.current_obs["posicao"]
+
+            if (x-1, y) == (gx, gy):
+                print(f"   [{self.name}] 🎯 Goal detected UP — stepping into goal!")
+                self.path_from_start.append("up")
+                return self._apply_dir("up")
+
+            if (x+1, y) == (gx, gy):
+                print(f"   [{self.name}] 🎯 Goal detected DOWN — stepping into goal!")
+                self.path_from_start.append("down")
+                return self._apply_dir("down")
+
+            if (x, y-1) == (gx, gy):
+                print(f"   [{self.name}] 🎯 Goal detected LEFT — stepping into goal!")
+                self.path_from_start.append("left")
+                return self._apply_dir("left")
+
+            if (x, y+1) == (gx, gy):
+                print(f"   [{self.name}] 🎯 Goal detected RIGHT — stepping into goal!")
+                self.path_from_start.append("right")
+                return self._apply_dir("right")
+
+        # ---------------- Standing on the goal ----------------
         if self.reached_goal:
             if self.mode == "explore":
-                print(f"   [{self.name}] 🎉 Reached goal → Broadcasting path: {self.path_from_start}")
+                print(f"   [{self.name}] 📨 Broadcasting found-path: {self.path_from_start}")
                 self._broadcast({"path_from_start_to_goal": list(self.path_from_start)})
                 self.mode = "wait"
             return None
 
-        # If following a plan
-        if self.mode == "follow_plan" and self.planned_moves:
-            direction = self.planned_moves.popleft()
-            print(f"   [{self.name}] 🧭 Following plan → {direction}")
-
-            # Back-to-start phase
-            if self.back_steps_remaining > 0:
-                self.back_steps_remaining -= 1
-                if self.path_from_start:
-                    popped = self.path_from_start.pop()
-                    print(f"   [{self.name}] ↩ Undoing step '{popped}' (return to start)")
-            else:
-                # From start to goal phase
+        # ---------------- Follow plan (backtrack + partner's suffix) ----------------
+        if self.mode == "follow_plan":
+            if self.planned_moves:
+                direction = self.planned_moves.popleft()
+                print(f"   [{self.name}] 🧭 Following planned step: {direction}")
                 self.path_from_start.append(direction)
-                print(f"   [{self.name}] ➕ Recording forward step '{direction}'")
+                return self._apply_dir(direction)
+            else:
+                print(f"   [{self.name}] ✅ Finished executing plan. Entering WAIT mode.")
+                self.mode = "wait"
+                return None
 
-            nx, ny = self._apply_dir(direction)
-            return (nx, ny)
-
-        # Otherwise explore
+        # ---------------- Exploration (DFS-like) ----------------
         return self._explore_step()
 
     # ------------------------------------------------------------
-    # EXPLORATION (DFS-like)
+    # EXPLORATION (DFS)
     # ------------------------------------------------------------
     def _explore_step(self):
         x, y = self.current_obs["posicao"]
-        blocked = set(self.current_obs["neighbors"].keys())
 
-        print(f"   [{self.name}] 🔍 Exploring from {x,y}, visited={len(self.visited)}")
+        print(f"   [{self.name}] 🔍 Exploring from {(x, y)}")
 
         directions = [
             ("up",    (x - 1, y)),
@@ -120,22 +159,21 @@ class MazeAgent(Agent):
         ]
         random.shuffle(directions)
 
-        # Try new cells first
+        # Prefer unvisited, non-blocked cells
         for d, (nx, ny) in directions:
             if not self.env.is_blocked(nx, ny) and (nx, ny) not in self.visited:
-                print(f"   [{self.name}] ➡ Moving {d} to NEW cell {(nx,ny)}")
+                print(f"   [{self.name}] ➡ NEW move: {d}")
                 self.path_from_start.append(d)
                 return (nx, ny)
 
-        # Otherwise backtrack
+        # Backtracking
         if self.path_from_start:
             last = self.path_from_start.pop()
-            back = self._opposite(last)
-            bx, by = self._apply_dir(back)
-            print(f"   [{self.name}] ↩ Dead end → Backtracking: {last} → {back}")
-            return (bx, by)
+            reverse = self._opposite(last)
+            print(f"   [{self.name}] ↩ Backtracking: {last} → {reverse}")
+            return self._apply_dir(reverse)
 
-        print(f"   [{self.name}] ❌ Stuck, nowhere to go")
+        print(f"   [{self.name}] ❌ No moves left")
         return None
 
     # ------------------------------------------------------------
@@ -152,13 +190,10 @@ class MazeAgent(Agent):
             return (self.x, self.y + 1)
         return (self.x, self.y)
 
-    def _opposite(self, direction):
+    def _opposite(self, d):
         return {
             "up": "down",
             "down": "up",
             "left": "right",
             "right": "left",
-        }[direction]
-
-    def _reverse_path(self, path):
-        return [self._opposite(d) for d in reversed(path)]
+        }[d]
