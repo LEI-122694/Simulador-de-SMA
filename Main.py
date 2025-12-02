@@ -1,4 +1,8 @@
+# Main.py
 import time
+
+from Environments.Lighthouse import setup_lighthouse
+from Environments.Maze import setup_maze
 
 class MotorDeSimulacao:
     def __init__(self, env, agents, delay=0.2, max_steps=250):
@@ -38,21 +42,40 @@ class MotorDeSimulacao:
 
 
 # ---------------------------
-# EXECUÇÃO EXEMPLO
+# EXECUÇÃO
 # ---------------------------
 if __name__ == "__main__":
-    # Escolher o ambiente
-    # Exemplo Labirinto:
-    from Environments.Maze import setup_maze
-    env, agents = setup_maze()
+    # ---------------------------
+    # CONFIGURAÇÃO
+    # ---------------------------
+    # Escolher o ambiente: "farol" ou "maze"
+    ambiente = "farol"
 
-    # Ou Farol:
-    # from Environments.Lighthouse import setup_lighthouse
-    # env, agents = setup_lighthouse()
+    # Escolher o modo: "test" ou "train"
+    modo = "test"
 
-    # Opcional: definir modo train/test
+    # ---------------------------
+    # INICIALIZAÇÃO
+    # ---------------------------
+    if ambiente == "farol":
+        # Se modo de teste, usar JSON fixo; se treino, mapa aleatório
+        json_file = "Resources/farol_map_1.json" if modo == "test" else None
+        env, agents = setup_lighthouse(mode=modo, json_file=json_file)
+
+    elif ambiente == "maze":
+        # Se modo de teste, usar JSON fixo; se treino, mapa aleatório
+        json_file = "Resources/maze_map_1.json" if modo == "test" else None
+        env, agents = setup_maze(mode=modo, json_file=json_file)
+
+    else:
+        raise ValueError("Ambiente inválido! Escolher 'farol' ou 'maze'.")
+
+    # Definir modo para cada agente
     for agent in agents:
-        agent.set_mode("train")  # ou "test"
+        agent.set_mode(modo)
 
+    # ---------------------------
+    # EXECUÇÃO DO MOTOR
+    # ---------------------------
     motor = MotorDeSimulacao(env, agents)
     motor.executa()
