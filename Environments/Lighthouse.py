@@ -1,5 +1,6 @@
 # Lighthouse.py
 import random
+import json
 from collections import deque
 from Environments.World import World
 from Agents.LighthouseAgent import LighthouseAgent
@@ -35,18 +36,38 @@ def is_reachable(start, goal, obstacles):
 
 
 # -----------------------------------------------------
-# SETUP FAROL (robusto)
+# SETUP FAROL — carregar de JSON (modo TESTE)
 # -----------------------------------------------------
-def setup_lighthouse():
-    """
-    FAROL environment (robusto):
-      - 10x10 grid
-      - farol colocado aleatoriamente
-      - ~30% obstáculos
-      - agentes começam apenas em células com caminho livre
-      - distância mínima imposta
-    """
+def setup_lighthouse_from_json(filename):
+    with open(filename, "r") as f:
+        data = json.load(f)
 
+    height = data["height"]
+    width = data["width"]
+    goals = [tuple(g) for g in data["goals"]]
+    obstacles = {tuple(o) for o in data["obstacles"]}
+
+    env = World(
+        height=height,
+        width=width,
+        goals=goals,
+        obstacles=obstacles,
+        mode="farol"
+    )
+
+    agents = []
+    for name, pos in data["start_positions"].items():
+        agent = LighthouseAgent(name, env, start_pos=tuple(pos))
+        agents.append(agent)
+
+    print(f"[Farol JSON] Loaded map from {filename}")
+    return env, agents
+
+
+# -----------------------------------------------------
+# SETUP FAROL — gerado aleatoriamente (modo TREINO)
+# -----------------------------------------------------
+def setup_lighthouse_random():
     all_cells = [(x, y) for x in range(HEIGHT) for y in range(WIDTH)]
     total_cells = HEIGHT * WIDTH
     num_obstacles = int(total_cells * OBSTACLE_RATIO)
@@ -55,7 +76,7 @@ def setup_lighthouse():
         # 1) Farol aleatório
         goal = random.choice(all_cells)
 
-        # 2) Obstáculos aleatórios (farol sempre livre)
+        # 2) Obstáculos aleatórios
         candidate_cells = [c for c in all_cells if c != goal]
         obstacles = set(random.sample(candidate_cells, num_obstacles))
 
@@ -78,13 +99,13 @@ def setup_lighthouse():
         if manhattan(start_B, goal) < MIN_START_DIST:
             continue
 
-        # 6) Garantir que ambos os agentes têm caminho até ao farol
+        # 6) Garantir caminho até ao farol
         if not is_reachable(start_A, goal, obstacles):
             continue
         if not is_reachable(start_B, goal, obstacles):
             continue
 
-        # Se chegar aqui → mapa válido
+        # Mapa válido encontrado
         break
 
     # Debug (opcional)
@@ -106,5 +127,18 @@ def setup_lighthouse():
     a1 = LighthouseAgent("A", env, start_pos=start_A)
     a2 = LighthouseAgent("B", env, start_pos=start_B)
 
-
     return env, [a1, a2]
+
+
+# -----------------------------------------------------
+# SETUP UNIFICADO — modo TEST / TRAIN
+# -----------------------------------------------------
+def setup_lighthouse(mode="test", json_file="Resources/farol_map_1.json"):
+    """
+    mode = "test"  → carregar mapa de JSON
+    mode = "train" → gerar mapa aleatório
+    """
+    if mode == "test":
+        return setup_lighthouse_from_json(json_file)
+    else:
+        return setup_lighthouse_random()
