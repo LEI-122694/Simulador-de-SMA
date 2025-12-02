@@ -1,7 +1,7 @@
 # Maze.py
 import json
 from Environments.World import World
-from Agents.MazeAgent import MazeAgent
+from Agents.MazeFixedAgent import MazeAgent
 from Environments.RandomMazeGenerator import generate_maze
 
 

@@ -3,7 +3,7 @@ import random
 import json
 from collections import deque
 from Environments.World import World
-from Agents.LighthouseAgent import LighthouseAgent
+from Agents.LighthouseFixedAgent import LighthouseAgent
 
 HEIGHT = 10
 WIDTH = 10
