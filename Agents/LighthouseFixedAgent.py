@@ -1,8 +1,8 @@
-# LighthouseAgent.py
+# LighthouseFixedAgent.py
 import random
 from Agents.Agent import Agent
 
-class LighthouseAgent(Agent):
+class LighthouseFixedAgent(Agent):
     """
     Agente para o modo FAROL.
     Move-se em direção ao farol se visível;

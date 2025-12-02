@@ -1,9 +1,9 @@
-# MazeAgent.py
+# MazeFixedAgent.py
 import random
 from collections import deque
 from Agents.Agent import Agent
 
-class MazeAgent(Agent):
+class MazeFixedAgent(Agent):
     """
     Maze agent (Smart Path Alignment with goal-adjacency sensing):
       - explores the maze from the common start
