@@ -1,110 +1,183 @@
-# Main.py
-import time
+# Training/TrainFarol.py
 
-from Environments.Lighthouse import setup_lighthouse
-from Environments.Maze import setup_maze
+import os
+import matplotlib.pyplot as plt
+
+from Environments.Lighthouse import load_fixed_map
+from Agents.LighthouseQLearningAgent import LighthouseQLearningAgent
+from Main import MotorDeSimulacao
+
+# ============================================================
+# ABSOLUTE MAP PATH (NO MORE FILE NOT FOUND)
+# ============================================================
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+MAP_FILE = os.path.join(BASE_DIR, "Resources", "farol_map_1.json")
+
+# ============================================================
+# RL HYPERPARAMETERS
+# ============================================================
+
+EPISODES = 80
+MAX_STEPS = 200
+
+ALPHA = 0.3
+GAMMA = 0.95
+
+EPSILON_START = 0.4
+EPSILON_DECAY = 0.90
+MIN_EPSILON = 0.01
 
 
-class MotorDeSimulacao:
-    def __init__(self, env, agents, delay=0.2, max_steps=250):
+# ============================================================
+# RL TRAINING ENGINE
+# ============================================================
+
+class FarolRLEngine:
+    def __init__(self, env, agent, max_steps=200):
         self.env = env
-        self.agents = agents
-        self.delay = delay
+        self.agent = agent
         self.max_steps = max_steps
 
-    def listaAgentes(self):
-        return self.agents
+    def run_episode(self):
+        total_reward = 0.0
+        goal = next(iter(self.env.goals))
 
-    def executa(self):
-        for step in range(self.max_steps):
-            print(f"\n--- Step {step+1} ---")
-            self.env.display()
+        for _ in range(self.max_steps):
 
-            # Cada agente age
-            for agent in self.agents:
-                obs = self.env.observacaoPara(agent)
-                agent.observacao(obs)
+            # 1. Observation
+            obs = self.env.observacaoPara(self.agent)
+            self.agent.observacao(obs)
 
-                accao = agent.age()
-                self.env.agir(accao, agent)
+            old_pos = (self.agent.x, self.agent.y)
+            dist_old = abs(goal[0] - old_pos[0]) + abs(goal[1] - old_pos[1])
 
-                if agent.reached_goal:
-                    print(f"🎯 Agente {agent.name} atingiu o objetivo!")
+            # 2. Action
+            action = self.agent.age()
+
+            # 3. Apply action
+            self.env.agir(action, self.agent)
+
+            new_pos = (self.agent.x, self.agent.y)
+            dist_new = abs(goal[0] - new_pos[0]) + abs(goal[1] - new_pos[1])
+
+            # -------------------------
+            # Reward Function B (stable)
+            # -------------------------
+            if self.agent.reached_goal:
+                reward = 100
+            else:
+                reward = -1  # step penalty
+
+                if dist_new < dist_old:
+                    reward += 2  # moved closer
+                # NO penalty for moving away (improves stability)
+
+            # Q-update
+            self.agent.avaliacaoEstadoAtual(reward)
+            total_reward += reward
 
             self.env.atualizacao()
 
-            if all(a.reached_goal for a in self.agents):
-                print("🎉 Todos os agentes atingiram o objetivo!")
-                return
+            if self.agent.reached_goal:
+                break
 
-            time.sleep(self.delay)
-
-        print("⏹ Limite de passos atingido.")
+        return total_reward
 
 
+# ============================================================
+# TRAINING LOOP
+# ============================================================
 
-# ---------------------------------------------------
-# NOVA EXECUÇÃO CONFIGURÁVEL
-# ---------------------------------------------------
-if __name__ == "__main__":
+def train_farol(map_file=MAP_FILE):
+    episode_rewards = []
+    shared_Q = {}
 
-    # ---------------------------------------------------
-    # CONFIGURAÇÃO DO UTILIZADOR
-    # ---------------------------------------------------
-    # Tipo de agente: "fixed" ou "learning"
-    tipo_agente = "fixed"
+    epsilon = EPSILON_START
 
-    # Tipo de mapa: "fixed" ou "random"
-    tipo_mapa = "random"
+    for ep in range(EPISODES):
+        print(f"\n===== EPISÓDIO {ep + 1}/{EPISODES} =====")
 
-    # Ambiente: "farol" ou "maze"
-    ambiente = "maze"
+        # -------------------------------------------
+        # Load map (using colleague's load_fixed_map)
+        # -------------------------------------------
+        env, start_positions, goal, obstacles = load_fixed_map(map_file)
 
-    # ---------------------------------------------------
-    # REGRAS DE VALIDAÇÃO
-    # ---------------------------------------------------
-    if tipo_agente == "learning" and tipo_mapa == "random":
-        print("ERRO: O modo LEARNING só pode ser usado com MAPA FIXO!")
-        print("    Mude para: tipo_mapa = 'fixed'")
-        exit(1)
+        start_A = tuple(start_positions["A"])
 
+        # Insert RL agent manually
+        rl = LighthouseQLearningAgent(
+            name="RL",
+            env=env,
+            start_pos=start_A,
+            alpha=ALPHA,
+            gamma=GAMMA,
+            epsilon=epsilon,
+            q_table=shared_Q
+        )
+        rl.set_mode("train")
 
-    # ---------------------------------------------------
-    # SELEÇÃO DO AMBIENTE E MAPA
-    # ---------------------------------------------------
-    if ambiente == "farol":
-        if tipo_mapa == "fixed":
-            json_file = "Resources/farol_map_1.json"
-        else:
-            json_file = None  # aleatório
+        env.agents = [rl]
 
-        env, agents = setup_lighthouse(agent_type=tipo_agente,
-                                       map_type=tipo_mapa,
-                                       json_file=json_file)
+        # Execute training episode
+        engine = FarolRLEngine(env, rl, MAX_STEPS)
+        total_reward = engine.run_episode()
+        episode_rewards.append(total_reward)
 
-    elif ambiente == "maze":
-        if tipo_mapa == "fixed":
-            json_file = "Resources/maze_map_1.json"
-        else:
-            json_file = None
+        print(f"Recompensa: {total_reward:.1f} | epsilon: {epsilon:.2f}")
 
-        env, agents = setup_maze(agent_type=tipo_agente,
-                                 map_type=tipo_mapa,
-                                 json_file=json_file)
+        # Epsilon decay
+        epsilon = max(MIN_EPSILON, epsilon * EPSILON_DECAY)
 
-    else:
-        raise ValueError("Ambiente inválido! Escolher 'farol' ou 'maze'.")
+        # Reset internal RL state
+        rl.last_state = None
+        rl.last_action = None
+        rl.reached_goal = False
 
+        # Save learned Q-table
+        rl.save_policy(os.path.join(BASE_DIR, "policy_farol.json"))
 
-    # ---------------------------------------------------
-    # APLICAR MODO AOS AGENTES
-    # ---------------------------------------------------
-    for agent in agents:
-        agent.set_mode("train" if tipo_agente == "learning" else "test")
+    return episode_rewards
 
 
-    # ---------------------------------------------------
-    # EXECUTAR
-    # ---------------------------------------------------
-    motor = MotorDeSimulacao(env, agents)
+# ============================================================
+# LEARNING CURVE PLOT
+# ============================================================
+
+def plot_learning_curve(rewards):
+    plt.figure(figsize=(9, 5))
+    plt.plot(rewards)
+    plt.title("Curva de Aprendizagem — Farol (Q-learning)")
+    plt.xlabel("Episódio")
+    plt.ylabel("Recompensa total")
+    plt.grid(True)
+    plt.show()
+
+
+# ============================================================
+# TEST TRAINED AGENT ON MAP
+# ============================================================
+
+def test_trained(map_file=MAP_FILE):
+    env, start_positions, goal, obstacles = load_fixed_map(map_file)
+
+    start_A = tuple(start_positions["A"])
+
+    rl = LighthouseQLearningAgent("RL", env, start_A)
+    rl.load_policy(os.path.join(BASE_DIR, "policy_farol.json"))
+    rl.set_mode("test")  # greedy
+
+    env.agents = [rl]
+
+    motor = MotorDeSimulacao(env, [rl])
     motor.executa()
+
+
+# ============================================================
+# EXECUTE
+# ============================================================
+
+if __name__ == "__main__":
+    rewards = train_farol(MAP_FILE)
+    plot_learning_curve(rewards)
+    test_trained(MAP_FILE)
