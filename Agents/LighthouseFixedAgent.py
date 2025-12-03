@@ -53,8 +53,6 @@ class LighthouseFixedAgent(Agent):
         4) Nenhum movimento possível
         """
 
-        test_mode = (self.mode == "test")
-
         d = self.current_obs.get("direcao_farol")
         print(f"   [{self.name}] Observed direction: {d}")
 
@@ -80,25 +78,9 @@ class LighthouseFixedAgent(Agent):
             print(f"   [{self.name}] Regra 1 BLOQUEADO {main}")
 
         # -------------------------------------------------
-        # Regra 2 — componentes verticais/horizontais
+        # Regra 2 — Movimento aleatório (8 direções)
         # -------------------------------------------------
-        components = []
-        if dx != 0:
-            components.append((self.x + dx, self.y))
-        if dy != 0:
-            components.append((self.x, self.y + dy))
-
-        for c in components:
-            if self.env.is_valid_position(*c):
-                print(f"   [{self.name}] Regra 2 → movimento componente {c}")
-                return c
-            else:
-                print(f"   [{self.name}] Regra 2 BLOQUEADO {c}")
-
-        # -------------------------------------------------
-        # Regra 3 — Movimento aleatório (8 direções)
-        # -------------------------------------------------
-        print(f"   [{self.name}] Regra 3 → RANDOM")
+        print(f"   [{self.name}] Regra 2 → RANDOM")
 
         neighbors = [
             (self.x - 1, self.y), (self.x + 1, self.y),
@@ -109,10 +91,7 @@ class LighthouseFixedAgent(Agent):
         valid = [n for n in neighbors if self.env.is_valid_position(*n)]
 
         if valid:
-            if test_mode:
-                choice = valid[0]  # determinista
-            else:
-                choice = random.choice(valid)
+            choice = random.choice(valid)
             print(f"   [{self.name}] RANDOM → {choice}")
             return choice
 
