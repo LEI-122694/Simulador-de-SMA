@@ -1,14 +1,15 @@
 # Maze.py
 import json
 from Environments.World import World
-from Agents.MazeFixedAgent import MazeAgent
+from Agents.MazeFixedAgent import MazeFixedAgent
+#from Agents.MazeLearningAgent import MazeLearningAgent
 from Environments.RandomMazeGenerator import generate_maze
 
 
-# -----------------------------------------------------
-# SETUP MAZE — carregar de JSON (modo TESTE)
-# -----------------------------------------------------
-def setup_maze_from_json(filename):
+# ---------------------------------------------------------
+# 1) Carregar mapa FIXO de JSON
+# ---------------------------------------------------------
+def load_fixed_map(filename):
     with open(filename, "r") as f:
         data = json.load(f)
 
@@ -25,19 +26,14 @@ def setup_maze_from_json(filename):
         mode="maze"
     )
 
-    agents = []
-    for name, pos in data["start_positions"].items():
-        agent = MazeAgent(name, env, start_pos=tuple(pos))
-        agents.append(agent)
-
-    print(f"[Maze JSON] Loaded map from {filename}")
-    return env, agents
+    return env, data["start_positions"], goals, obstacles
 
 
-# -----------------------------------------------------
-# SETUP MAZE — gerado aleatoriamente (modo TREINO)
-# -----------------------------------------------------
-def setup_maze_random():
+
+# ---------------------------------------------------------
+# 2) Gerar mapa RANDOM para FixedAgent
+# ---------------------------------------------------------
+def generate_random_maze():
     height = 11
     width = 11
 
@@ -45,10 +41,11 @@ def setup_maze_random():
     walls = maze_data["walls"]
     entrances = maze_data["entrances"]
 
-    start_pos = entrances[0]
+    start_A = entrances[0]
+    start_B = entrances[0]   # pode ser igual, é permitido
     goal = entrances[1]
 
-    print(f"[Maze] Start = {start_pos}, Goal = {goal}")
+    print(f"[Maze] Start A = {start_A}, Start B = {start_B}, Goal = {goal}")
 
     env = World(
         height=height,
@@ -58,21 +55,59 @@ def setup_maze_random():
         mode="maze"
     )
 
-    a1 = MazeAgent("A", env, start_pos=start_pos)
-    a2 = MazeAgent("B", env, start_pos=start_pos)
+    start_positions = {
+        "A": start_A,
+        "B": start_B
+    }
 
-    return env, [a1, a2]
+    return env, start_positions, [goal], walls
 
 
-# -----------------------------------------------------
-# SETUP UNIFICADO — modo TEST / TRAIN
-# -----------------------------------------------------
-def setup_maze(mode="test", json_file="Resources/maze_map_1.json"):
+
+# ---------------------------------------------------------
+# 3) SETUP UNIFICADO (usa agent_type + map_type)
+# ---------------------------------------------------------
+def setup_maze(agent_type="fixed", map_type="fixed", json_file="Resources/maze_map_1.json"):
     """
-    mode = "test"  → carregar mapa de JSON
-    mode = "train" → gerar mapa aleatório
+    agent_type = "fixed" ou "learning"
+    map_type   = "fixed" ou "random"
     """
-    if mode == "test":
-        return setup_maze_from_json(json_file)
+
+    # ---------------------------------------------------------
+    # REGRA IMPORTANTE
+    # ---------------------------------------------------------
+    if agent_type == "learning" and map_type == "random":
+        raise ValueError("❌ Erro: MazeLearningAgent só pode ser usado com mapa FIXED.")
+
+    # ---------------------------------------------------------
+    # MAPA
+    # ---------------------------------------------------------
+    if map_type == "fixed":
+        env, start_positions, goals, obstacles = load_fixed_map(json_file)
+
+    elif map_type == "random":
+        env, start_positions, goals, obstacles = generate_random_maze()
+
     else:
-        return setup_maze_random()
+        raise ValueError("map_type deve ser 'fixed' ou 'random'")
+
+
+    # ---------------------------------------------------------
+    # AGENTES
+    # ---------------------------------------------------------
+    agents = []
+
+    for name, pos in start_positions.items():
+
+        if agent_type == "fixed":
+            agent = MazeFixedAgent(name, env, start_pos=tuple(pos))
+
+        #elif agent_type == "learning":
+            #agent = MazeLearningAgent(name, env, start_pos=tuple(pos))
+
+        else:
+            raise ValueError("agent_type deve ser 'fixed' ou 'learning'")
+
+        agents.append(agent)
+
+    return env, agents

@@ -4,6 +4,7 @@ import time
 from Environments.Lighthouse import setup_lighthouse
 from Environments.Maze import setup_maze
 
+
 class MotorDeSimulacao:
     def __init__(self, env, agents, delay=0.2, max_steps=250):
         self.env = env
@@ -41,41 +42,69 @@ class MotorDeSimulacao:
         print("⏹ Limite de passos atingido.")
 
 
-# ---------------------------
-# EXECUÇÃO
-# ---------------------------
+
+# ---------------------------------------------------
+# NOVA EXECUÇÃO CONFIGURÁVEL
+# ---------------------------------------------------
 if __name__ == "__main__":
-    # ---------------------------
-    # CONFIGURAÇÃO
-    # ---------------------------
-    # Escolher o ambiente: "farol" ou "maze"
-    ambiente = "farol"
 
-    # Escolher o modo: "test" ou "train"
-    modo = "test"
+    # ---------------------------------------------------
+    # CONFIGURAÇÃO DO UTILIZADOR
+    # ---------------------------------------------------
+    # Tipo de agente: "fixed" ou "learning"
+    tipo_agente = "fixed"
 
-    # ---------------------------
-    # INICIALIZAÇÃO
-    # ---------------------------
+    # Tipo de mapa: "fixed" ou "random"
+    tipo_mapa = "random"
+
+    # Ambiente: "farol" ou "maze"
+    ambiente = "maze"
+
+    # ---------------------------------------------------
+    # REGRAS DE VALIDAÇÃO
+    # ---------------------------------------------------
+    if tipo_agente == "learning" and tipo_mapa == "random":
+        print("ERRO: O modo LEARNING só pode ser usado com MAPA FIXO!")
+        print("    Mude para: tipo_mapa = 'fixed'")
+        exit(1)
+
+
+    # ---------------------------------------------------
+    # SELEÇÃO DO AMBIENTE E MAPA
+    # ---------------------------------------------------
     if ambiente == "farol":
-        # Se modo de teste, usar JSON fixo; se treino, mapa aleatório
-        json_file = "Resources/farol_map_1.json" if modo == "test" else None
-        env, agents = setup_lighthouse(mode=modo, json_file=json_file)
+        if tipo_mapa == "fixed":
+            json_file = "Resources/farol_map_1.json"
+        else:
+            json_file = None  # aleatório
+
+        env, agents = setup_lighthouse(agent_type=tipo_agente,
+                                       map_type=tipo_mapa,
+                                       json_file=json_file)
 
     elif ambiente == "maze":
-        # Se modo de teste, usar JSON fixo; se treino, mapa aleatório
-        json_file = "Resources/maze_map_1.json" if modo == "test" else None
-        env, agents = setup_maze(mode=modo, json_file=json_file)
+        if tipo_mapa == "fixed":
+            json_file = "Resources/maze_map_1.json"
+        else:
+            json_file = None
+
+        env, agents = setup_maze(agent_type=tipo_agente,
+                                 map_type=tipo_mapa,
+                                 json_file=json_file)
 
     else:
         raise ValueError("Ambiente inválido! Escolher 'farol' ou 'maze'.")
 
-    # Definir modo para cada agente
-    for agent in agents:
-        agent.set_mode(modo)
 
-    # ---------------------------
-    # EXECUÇÃO DO MOTOR
-    # ---------------------------
+    # ---------------------------------------------------
+    # APLICAR MODO AOS AGENTES
+    # ---------------------------------------------------
+    for agent in agents:
+        agent.set_mode("train" if tipo_agente == "learning" else "test")
+
+
+    # ---------------------------------------------------
+    # EXECUTAR
+    # ---------------------------------------------------
     motor = MotorDeSimulacao(env, agents)
     motor.executa()
