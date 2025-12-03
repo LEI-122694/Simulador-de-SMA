@@ -158,8 +158,8 @@ class MazeFixedAgent(Agent):
             ("left",  (x, y - 1)),
             ("right", (x, y + 1)),
         ]
-        if self.mode == "train":
-            random.shuffle(directions)
+
+        random.shuffle(directions)
 
         # Prefer unvisited, non-blocked cells
         for d, (nx, ny) in directions:
