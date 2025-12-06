@@ -3,6 +3,9 @@ import time
 
 from Environments.Lighthouse import setup_lighthouse
 from Environments.Maze import setup_maze
+from Training.TrainFarol import train_farol, plot_learning_curve, load_trained_agent
+from Environments.Lighthouse import load_fixed_map
+import os
 
 
 class MotorDeSimulacao:
@@ -52,10 +55,10 @@ if __name__ == "__main__":
     # CONFIGURAÇÃO DO UTILIZADOR
     # ---------------------------------------------------
     # Tipo de agente: "fixed" ou "learning"
-    tipo_agente = "fixed"
+    tipo_agente = "learning"
 
     # Tipo de mapa: "fixed" ou "random"
-    tipo_mapa = "random"
+    tipo_mapa = "fixed"
 
     # Ambiente: "farol" ou "maze"
     ambiente = "maze"
@@ -73,10 +76,38 @@ if __name__ == "__main__":
     # SELEÇÃO DO AMBIENTE E MAPA
     # ---------------------------------------------------
     if ambiente == "farol":
+
+        # ==========================================
+        # SPECIAL BRANCH: RL LEARNING MODE
+        # ==========================================
+        if tipo_agente == "learning" and tipo_mapa == "fixed":
+            print("\n🔵 Iniciando TREINO Q-LEARNING para FAROL...\n")
+
+            BASE = os.path.dirname(__file__)
+            map_path = os.path.join(BASE, "Resources", "farol_map_3.json")
+
+            # 1️⃣ TRAIN
+            rewards = train_farol(map_path)
+
+            # 2️⃣ SHOW LEARNING CURVE
+            plot_learning_curve(rewards)
+
+            print("\n🟢 Testando POLÍTICA TREINADA no ambiente FAROL...\n")
+
+            # 3️⃣ LOAD TRAINED AGENT
+            env, agents = load_trained_agent(map_path)
+
+            # 4️⃣ RUN SIMULATION using your normal engine
+            motor = MotorDeSimulacao(env, agents)
+            motor.executa()
+
+            exit(0)  # PREVENT continuing to normal fixed logic        # ==========================================
+        # NORMAL FIXED / RANDOM FAROL (unchanged)
+        # ==========================================
         if tipo_mapa == "fixed":
-            json_file = "Resources/farol_map_1.json"
+            json_file = "Resources/farol_map_3.json"
         else:
-            json_file = None  # aleatório
+            json_file = None
 
         env, agents = setup_lighthouse(agent_type=tipo_agente,
                                        map_type=tipo_mapa,
@@ -99,9 +130,9 @@ if __name__ == "__main__":
     # ---------------------------------------------------
     # APLICAR MODO AOS AGENTES
     # ---------------------------------------------------
-    for agent in agents:
-        agent.set_mode("train" if tipo_agente == "learning" else "test")
-
+    if tipo_agente != "learning":  # RL already sets its own mode
+        for agent in agents:
+            agent.set_mode("train" if tipo_agente == "learning" else "test")
 
     # ---------------------------------------------------
     # EXECUTAR

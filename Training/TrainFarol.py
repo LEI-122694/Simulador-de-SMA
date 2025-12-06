@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 from Environments.Lighthouse import load_fixed_map
 from Agents.LighthouseQLearningAgent import LighthouseQLearningAgent
-from Main import MotorDeSimulacao
 
 # ============================================================
 # ABSOLUTE MAP PATH (NO MORE FILE NOT FOUND)
@@ -151,26 +150,27 @@ def plot_learning_curve(rewards):
     plt.xlabel("Episódio")
     plt.ylabel("Recompensa total")
     plt.grid(True)
-    plt.show()
+
+    plt.show(block=False)  # <<<<<<<<<< FIX
+    plt.pause(2)            # show for 2 seconds
+    plt.close()             # then auto-close
 
 
 # ============================================================
 # TEST TRAINED AGENT ON MAP
 # ============================================================
 
-def test_trained(map_file=MAP_FILE):
+def load_trained_agent(map_file=MAP_FILE):
     env, start_positions, goal, obstacles = load_fixed_map(map_file)
-
     start_A = tuple(start_positions["A"])
 
     rl = LighthouseQLearningAgent("RL", env, start_A)
     rl.load_policy(os.path.join(BASE_DIR, "policy_farol.json"))
-    rl.set_mode("test")  # greedy
+    rl.set_mode("test")
 
     env.agents = [rl]
+    return env, [rl]
 
-    motor = MotorDeSimulacao(env, [rl])
-    motor.executa()
 
 
 # ============================================================
@@ -180,4 +180,4 @@ def test_trained(map_file=MAP_FILE):
 if __name__ == "__main__":
     rewards = train_farol(MAP_FILE)
     plot_learning_curve(rewards)
-    test_trained(MAP_FILE)
+    load_trained_agent(MAP_FILE)
