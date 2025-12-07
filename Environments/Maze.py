@@ -2,7 +2,7 @@
 import json
 from Environments.World import World
 from Agents.MazeFixedAgent import MazeFixedAgent
-#from Agents.MazeLearningAgent import MazeLearningAgent
+from Agents.MazeLearningAgent import MazeLearningAgent
 from Environments.RandomMazeGenerator import generate_maze
 
 
@@ -102,8 +102,8 @@ def setup_maze(agent_type="fixed", map_type="fixed", json_file="Resources/maze_m
         if agent_type == "fixed":
             agent = MazeFixedAgent(name, env, start_pos=tuple(pos))
 
-        #elif agent_type == "learning":
-            #agent = MazeLearningAgent(name, env, start_pos=tuple(pos))
+        elif agent_type == "learning":
+            agent = MazeLearningAgent(name, env, start_pos=tuple(pos))
 
         else:
             raise ValueError("agent_type deve ser 'fixed' ou 'learning'")

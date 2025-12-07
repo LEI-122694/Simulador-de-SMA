@@ -3,9 +3,9 @@ import random
 import json
 from collections import deque
 
+from Agents.LighthouseQLearningAgent import LighthouseQLearningAgent
 from Environments.World import World
 from Agents.LighthouseFixedAgent import LighthouseFixedAgent
-#from Agents.LighthouseLearningAgent import LighthouseLearningAgent
 
 
 # ---------------------------------------------------------
@@ -159,8 +159,8 @@ def setup_lighthouse(agent_type="fixed", map_type="fixed", json_file="Resources/
         if agent_type == "fixed":
             agent = LighthouseFixedAgent(name, env, start_pos=tuple(pos))
 
-        #elif agent_type == "learning":
-            #agent = LighthouseLearningAgent(name, env, start_pos=tuple(pos))
+        elif agent_type == "learning":
+            agent = LighthouseQLearningAgent(name, env, start_pos=tuple(pos))
 
         else:
             raise ValueError("agent_type deve ser 'fixed' ou 'learning'")
