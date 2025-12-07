@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 from Environments.Lighthouse import load_fixed_map
-from Agents.LighthouseQLearningAgent import LighthouseQLearningAgent
+from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
 
 # ============================================================
 # ABSOLUTE MAP PATH (NO MORE FILE NOT FOUND)
@@ -42,14 +42,10 @@ class FarolRLEngine:
         total_reward = 0.0
         goal = next(iter(self.env.goals))
 
-        for _ in range(self.max_steps):
-
+        for step in range(1, self.max_steps + 1):
             # 1. Observation
             obs = self.env.observacaoPara(self.agent)
             self.agent.observacao(obs)
-
-            old_pos = (self.agent.x, self.agent.y)
-            dist_old = abs(goal[0] - old_pos[0]) + abs(goal[1] - old_pos[1])
 
             # 2. Action
             action = self.agent.age()
@@ -57,20 +53,14 @@ class FarolRLEngine:
             # 3. Apply action
             self.env.agir(action, self.agent)
 
-            new_pos = (self.agent.x, self.agent.y)
-            dist_new = abs(goal[0] - new_pos[0]) + abs(goal[1] - new_pos[1])
-
-            # -------------------------
-            # Reward Function B (stable)
-            # -------------------------
-            if self.agent.reached_goal:
-                reward = 100
-            else:
-                reward = -1  # step penalty
-
-                if dist_new < dist_old:
-                    reward += 2  # moved closer
-                # NO penalty for moving away (improves stability)
+            # 4. Reward
+            reward = self.agent.calcula_recompensa(
+                estado_anterior=self.agent.last_state,
+                acao=self.agent.last_action,
+                estado_atual=self.agent.current_state,
+                passo_atual=step,
+                max_steps=self.max_steps
+            )
 
             # Q-update
             self.agent.avaliacaoEstadoAtual(reward)

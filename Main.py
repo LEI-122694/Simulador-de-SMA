@@ -61,7 +61,7 @@ if __name__ == "__main__":
     tipo_mapa = "fixed"
 
     # Ambiente: "farol" ou "maze"
-    ambiente = "maze"
+    ambiente = "farol"
 
     # ---------------------------------------------------
     # REGRAS DE VALIDAÇÃO
@@ -84,7 +84,7 @@ if __name__ == "__main__":
             print("\n🔵 Iniciando TREINO Q-LEARNING para FAROL...\n")
 
             BASE = os.path.dirname(__file__)
-            map_path = os.path.join(BASE, "Resources", "farol_map_3.json")
+            map_path = os.path.join(BASE, "Resources", "farol_map_1.json")
 
             # 1️⃣ TRAIN
             rewards = train_farol(map_path)

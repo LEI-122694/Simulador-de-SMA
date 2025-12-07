@@ -3,7 +3,7 @@ import random
 import json
 from collections import deque
 
-from Agents.LighthouseQLearningAgent import LighthouseQLearningAgent
+from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
 from Environments.World import World
 from Agents.LighthouseFixedAgent import LighthouseFixedAgent
 
