@@ -1,3 +1,4 @@
+# LighthouseLearningAgent.py
 import random
 import json
 from Agents.Agent import Agent
@@ -41,6 +42,60 @@ class LighthouseQLearningAgent(Agent):
         self.last_action = None
 
         self.reached_goal = False
+
+    # ---------------------- [Recompensa] ----------------------
+    def calcula_recompensa(self, estado_anterior, acao, estado_atual, passo_atual, max_steps):
+        """
+        Recompensa revisada:
+        - Penaliza voltar a posições já visitadas (loops)
+        - Penaliza cada passo inútil
+        - Recompensa por aproximar-se do farol
+        - Recompensa final proporcional à eficiência
+        """
+
+        # Inicializa histórico de posições visitadas no episódio
+        if not hasattr(self, "visited_positions"):
+            self.visited_positions = set()
+
+        # Coordenadas atuais
+        pos = (self.x, self.y)
+
+        # -------------------------------
+        # Penalização por loop
+        # -------------------------------
+        if pos in self.visited_positions:
+            reward = -2.0  # penalidade forte por voltar
+        else:
+            reward = -0.1  # penalidade padrão por passo
+            self.visited_positions.add(pos)
+
+        # -------------------------------
+        # Recompensa local: aproximação
+        # -------------------------------
+        DIRECAO_MAP = {
+            "N": ["N", "NE", "NW"],
+            "S": ["S", "SE", "SW"],
+            "E": ["E", "NE", "SE"],
+            "W": ["W", "NW", "SW"],
+            "NE": ["NE", "N", "E"],
+            "NW": ["NW", "N", "W"],
+            "SE": ["SE", "S", "E"],
+            "SW": ["SW", "S", "W"],
+        }
+
+        if acao in DIRECAO_MAP.get(estado_atual[0], []):
+            reward += 1.0  # aproxima-se do farol
+
+        # -------------------------------
+        # Recompensa final se chegou ao farol
+        # -------------------------------
+        if estado_atual[0] == "HERE":
+            reward += 100.0 * (1 - passo_atual / max_steps)
+            self.visited_positions.clear()  # reset para próximo episódio
+
+        return reward
+
+    # -----------------------------------------------------------
 
     # ------------------------------------------------------------
     def comunica(self, mensagem, de_agente):
