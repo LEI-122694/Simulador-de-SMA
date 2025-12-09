@@ -1,359 +1,257 @@
+# Training/TrainMaze.py
+
 import os
 import random
-import json
 import math
+
+import numpy as np
 import matplotlib.pyplot as plt
 
 from Environments.Maze import load_fixed_map
-from Environments.World import World
 from Agents.MazeLearningAgent import MazeLearningAgent
 
 
 # ============================================================
-# PATHS / CONSTANTS
+# HYPERPARAMETERS
 # ============================================================
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-MAP_FILE = os.path.join(BASE_DIR, "Resources", "maze_map_1.json")
-BEST_GENOTYPE_FILE = os.path.join(BASE_DIR, "maze_best_genotype.json")
+POP_SIZE        = 80          # number of individuals per generation
+GENERATIONS     = 80          # evolutionary generations
+STEPS_PER_AGENT = 600         # simulation steps per evaluation
 
-POP_SIZE = 40
-GENERATIONS = 40
-STEPS_PER_EPISODE = 250
+K_NEIGHBORS     = 10          # k for k-NN novelty
+MUTATION_RATE   = 0.20        # prob. of mutating each gene
+MUTATION_STD    = 0.60        # Gaussian noise
 
-ELITE_FRACTION = 0.2        # top % kept as parents
-MUTATION_RATE = 0.1         # probability each gene is mutated
-MUTATION_STD = 0.3          # std-dev of gaussian noise
-
-K_NEIGHBORS = 10            # k-NN for novelty
-ARCHIVE_ADD_TOP_K = 3       # add this many most novel per generation to archive
+ARCHIVE_ADD_TOP = 5            # how many most-novel individuals to add per gen
 
 
 # ============================================================
-# BEHAVIOR / NOVELTY
+# BEHAVIOUR CHARACTERISATION
 # ============================================================
 
-def behavior_distance(b1, b2):
+def behaviour_vector(env, agent):
     """
-    Jaccard distance between two sets of visited cells.
-    Distance in [0,1]. 0 = identical, 1 = completely different.
+    Behaviour descriptor = final position (x, y),
+    exactly as in the maze example from the slides.
     """
-    if not b1 and not b2:
-        return 0.0
-    inter = len(b1 & b2)
-    union = len(b1 | b2)
-    if union == 0:
-        return 0.0
-    return 1.0 - inter / union
-
-
-def compute_novelty(behaviors, archive, k=K_NEIGHBORS):
-    """
-    Compute novelty score for each behavior, using average distance
-    to k nearest neighbors in (archive + current population).
-    behaviors: list of sets of visited (x,y)
-    """
-    all_behaviors = archive + behaviors
-    n = len(behaviors)
-    novelties = [0.0] * n
-
-    if len(all_behaviors) <= 1:
-        # no reference yet
-        return novelties
-
-    for i, beh in enumerate(behaviors):
-        dists = []
-        for other in all_behaviors:
-            if other is beh:
-                continue
-            d = behavior_distance(beh, other)
-            dists.append(d)
-
-        if not dists:
-            novelties[i] = 0.0
-        else:
-            dists.sort(reverse=True)  # higher distance = more novel
-            k_use = min(k, len(dists))
-            novelties[i] = sum(dists[:k_use]) / k_use
-
-    return novelties
-
-
-def update_archive(archive, behaviors, novelties, add_top_k=ARCHIVE_ADD_TOP_K):
-    """
-    Add the top-k most novel behaviors to the archive (if not too similar).
-    """
-    if not behaviors:
-        return archive
-
-    indices = list(range(len(behaviors)))
-    indices.sort(key=lambda i: novelties[i], reverse=True)
-
-    for idx in indices[:add_top_k]:
-        cand = behaviors[idx]
-
-        if not archive:
-            archive.append(cand)
-            continue
-
-        min_dist = min(behavior_distance(cand, a) for a in archive)
-        # only add if sufficiently different from existing archive behaviors
-        if min_dist > 0.1:
-            archive.append(cand)
-
-    return archive
+    return np.array([agent.x, agent.y], dtype=float)
 
 
 # ============================================================
-# GENOTYPE HELPERS
+# EVALUATION OF ONE GENOME
 # ============================================================
 
-def random_genotype():
-    size = MazeLearningAgent.genotype_size()
-    scale = 0.5
-    return [random.uniform(-scale, scale) for _ in range(size)]
-
-
-def mutate_genotype(genes, rate=MUTATION_RATE, std=MUTATION_STD):
-    new = genes[:]
-    for i in range(len(new)):
-        if random.random() < rate:
-            new[i] += random.gauss(0.0, std)
-    return new
-
-
-def crossover_genotypes(parent1, parent2):
+def evaluate_individual(template_env, genome, start_pos, goal):
     """
-    Uniform crossover between two parent genotypes.
-    """
-    assert len(parent1) == len(parent2)
-    child = []
-    for g1, g2 in zip(parent1, parent2):
-        child.append(g1 if random.random() < 0.5 else g2)
-    return child
-
-
-# ============================================================
-# SIMULATION OF ONE GENOTYPE
-# ============================================================
-
-def simulate_genotype(genes, base_env, start_pos, goals, obstacles, steps=STEPS_PER_EPISODE):
-    """
-    Evaluate a single neural agent (given its genotype) in the maze.
+    Run one agent with given genome in a CLONED environment.
     Returns:
-      visited_set (set of (x,y)),
-      reached_goal (bool)
+        - behaviour vector (final (x,y))
+        - reached_goal (bool)
     """
-    # New env with same layout
-    env = World(
-        height=base_env.height,
-        width=base_env.width,
-        goals=goals,
-        obstacles=obstacles,
-        mode="maze"
-    )
+    env = template_env.clone()
 
-    agent = MazeLearningAgent("EVO", env, start_pos=start_pos, weights=genes)
-    agent.set_mode("test")  # no learning, just NN control
+    agent = MazeLearningAgent("EVO", env, start_pos, genome)
     env.agents = [agent]
 
-    visited = set()
-
-    for _ in range(steps):
+    for _ in range(STEPS_PER_AGENT):
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
-
-        visited.add((agent.x, agent.y))
-
-        accao = agent.age()
-        env.agir(accao, agent)
-
+        action = agent.age()
+        env.agir(action, agent)
         env.atualizacao()
 
         if agent.reached_goal:
             break
 
-    return visited, agent.reached_goal
+    bv = behaviour_vector(env, agent)
+    return bv, agent.reached_goal
 
 
 # ============================================================
-# TRAINING LOOP (PURE NOVELTY SEARCH)
+# NOVELTY METRIC
 # ============================================================
 
-def train_maze(map_file=MAP_FILE):
+def novelty_of(bv, neighbours, k=K_NEIGHBORS):
     """
-    Pure Novelty Search evolution of MazeLearningAgent on a fixed maze map.
-    Returns a history dict with stats and saves best genotype to disk.
+    Novelty = average Euclidean distance to k nearest neighbours
+    in behaviour space (archive ∪ current population).
+    """
+    if len(neighbours) == 0:
+        return 0.0
+
+    dists = [np.linalg.norm(bv - other) for other in neighbours]
+    dists.sort()
+    k_eff = min(k, len(dists))
+    return sum(dists[:k_eff]) / float(k_eff)
+
+
+# ============================================================
+# MUTATION
+# ============================================================
+
+def mutate_genome(parent):
+    child = []
+    for g in parent:
+        if random.random() < MUTATION_RATE:
+            g = g + random.gauss(0.0, MUTATION_STD)
+        child.append(g)
+    return child
+
+
+# ============================================================
+# MAIN TRAINING LOOP
+# ============================================================
+
+def train_maze(map_file):
+    """
+    Novelty Search evolution for the MAZE task.
+
+    Returns:
+        best_novelty_per_gen, mean_novelty_per_gen, archive, goals
     """
 
-    # Load base map once
-    base_env, start_positions, goals, obstacles = load_fixed_map(map_file)
-    start_A = tuple(start_positions["A"])
-    goals = [tuple(g) for g in goals]
+    # 1) Load fixed map from JSON
+    template_env, start_positions, goals, _ = load_fixed_map(map_file)
+    start_pos = tuple(start_positions["A"])
+    goal = goals[0]
 
-    # Initialize population
-    population = [random_genotype() for _ in range(POP_SIZE)]
+    # 2) Initial random population of genomes
+    genome_size = MazeLearningAgent.genome_size()
+    def random_genome():
+        return [random.uniform(-1, 1) for _ in range(genome_size)]
 
+    population = [random_genome() for _ in range(POP_SIZE)]
+
+    # Novelty archive: list of behaviour vectors (np.array)
     archive = []
-    best_genotype = None
-    best_novelty_ever = -1.0
 
-    history_best_novelty = []
-    history_mean_novelty = []
-    history_archive_size = []
-    history_goal_count = []
+    # For plotting
+    best_novels = []
+    mean_novels = []
+
+    best_overall_genome = None
+    best_overall_novelty = -math.inf
 
     for gen in range(GENERATIONS):
-        print(f"\n===== MAZE GENERATION {gen+1}/{GENERATIONS} =====")
+        print(f"\n===== GENERATION {gen+1}/{GENERATIONS} =====")
 
-        behaviors = []
+        behaviours = []
         reached_flags = []
 
-        # --- Evaluate all individuals: produce behaviors (visited sets) ---
-        for i, genes in enumerate(population):
-            visited, reached = simulate_genotype(
-                genes, base_env, start_A, goals, obstacles, steps=STEPS_PER_EPISODE
-            )
-            behaviors.append(visited)
+        # 3) Evaluate each genome
+        for idx, genome in enumerate(population):
+            bv, reached = evaluate_individual(template_env, genome, start_pos, goal)
+            behaviours.append(bv)
             reached_flags.append(reached)
 
-        # --- Compute novelty for each behavior ---
-        novelties = compute_novelty(behaviors, archive, k=K_NEIGHBORS)
+        # 4) Compute novelty scores
+        novelties = []
+        for i, bv in enumerate(behaviours):
+            # neighbours = archive ∪ (population except self)
+            others = archive + [behaviours[j] for j in range(len(behaviours)) if j != i]
+            nov = novelty_of(bv, others, K_NEIGHBORS)
+            novelties.append(nov)
 
-        # --- Update archive with most novel behaviors ---
-        archive = update_archive(archive, behaviors, novelties)
+        # 5) Stats
+        best_n = max(novelties)
+        mean_n = sum(novelties) / len(novelties)
 
-        # --- Stats & logging ---
-        best_nov = max(novelties)
-        mean_nov = sum(novelties) / len(novelties)
-        goals_reached = sum(1 for r in reached_flags if r)
+        best_novels.append(best_n)
+        mean_novels.append(mean_n)
 
-        history_best_novelty.append(best_nov)
-        history_mean_novelty.append(mean_nov)
-        history_archive_size.append(len(archive))
-        history_goal_count.append(goals_reached)
+        num_reached = sum(1 for f in reached_flags if f)
+        print(f"  best novelty = {best_n:.3f} | mean = {mean_n:.3f} | reached goal = {num_reached}")
 
-        print(f"Best novelty: {best_nov:.3f} | Mean novelty: {mean_nov:.3f} | "
-              f"Goals reached this gen: {goals_reached} | Archive size: {len(archive)}")
+        # Track best overall (by novelty; optionally prefer those that reach goal)
+        best_idx_gen = max(range(len(population)), key=lambda i: novelties[i])
+        if best_novelties := novelties[best_idx_gen] > best_overall_novelty:
+            best_overall_novelty = novelties[best_idx_gen]
+            best_overall_genome = population[best_idx_gen][:]
 
-        # track best-ever individual (by novelty)
-        best_index = max(range(len(population)), key=lambda i: novelties[i])
-        if novelties[best_index] > best_novelty_ever or best_genotype is None:
-            best_genotype = population[best_index][:]
-            best_novelty_ever = novelties[best_index]
+        # 6) Archive update: add top ARCHIVE_ADD_TOP most novel behaviours
+        sorted_idx = sorted(range(len(population)),
+                            key=lambda i: novelties[i],
+                            reverse=True)
 
-        # --- Selection (pure novelty) ---
-        indices = list(range(len(population)))
-        indices.sort(key=lambda i: novelties[i], reverse=True)
+        for i in sorted_idx[:ARCHIVE_ADD_TOP]:
+            archive.append(behaviours[i])
 
-        n_elite = max(1, int(ELITE_FRACTION * POP_SIZE))
-        elites = [population[i] for i in indices[:n_elite]]
+        print(f"  archive size = {len(archive)}")
 
-        # --- Reproduction ---
-        new_population = elites[:]  # keep elites unchanged
+        # 7) Selection & reproduction (pure novelty-based)
+        PARENTS = max(5, POP_SIZE // 5)
+        parents = [population[i] for i in sorted_idx[:PARENTS]]
 
+        # Elitism: copy the top 2 genomes directly
+        ELITE = 2
+        new_population = [population[i][:] for i in sorted_idx[:ELITE]]
+
+        # Fill the rest via mutation of parents
         while len(new_population) < POP_SIZE:
-            p1 = random.choice(elites)
-            p2 = random.choice(elites)
-            child = crossover_genotypes(p1, p2)
-            child = mutate_genotype(child)
-            new_population.append(child)
+            p = random.choice(parents)
+            c = mutate_genome(p)
+            new_population.append(c)
 
         population = new_population
 
-    # Save best genotype found
-    if best_genotype is not None:
-        save_best_genotype(best_genotype)
+    # ---------------------------------------------
+    # Save best genome to disk
+    # ---------------------------------------------
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    save_path = os.path.join(base_dir, "maze_best_genome.txt")
 
-    history = {
-        "best_novelty": history_best_novelty,
-        "mean_novelty": history_mean_novelty,
-        "archive_size": history_archive_size,
-        "goal_count": history_goal_count,
-    }
+    with open(save_path, "w") as f:
+        f.write(",".join(str(x) for x in best_overall_genome))
 
-    return history
+    print(f"\n✅ Saved best genome to: {save_path}")
 
-
-# ============================================================
-# SAVE / LOAD BEST GENOTYPE
-# ============================================================
-
-def save_best_genotype(genes, filename=BEST_GENOTYPE_FILE):
-    with open(filename, "w") as f:
-        json.dump(genes, f)
-
-
-def load_best_genotype(filename=BEST_GENOTYPE_FILE):
-    with open(filename, "r") as f:
-        return json.load(f)
+    return best_novels, mean_novels, archive, goals
 
 
 # ============================================================
-# PLOTS
+# PLOT NOVELTY CURVE
 # ============================================================
 
-def plot_novelty(history):
-    gens = range(1, len(history["best_novelty"]) + 1)
-
-    plt.figure(figsize=(10, 6))
-
-    # Best & mean novelty
-    plt.subplot(2, 1, 1)
-    plt.plot(gens, history["best_novelty"], label="Best novelty")
-    plt.plot(gens, history["mean_novelty"], label="Mean novelty")
-    plt.ylabel("Novelty")
-    plt.legend()
-    plt.grid(True)
-
-    # Archive size + goals reached
-    plt.subplot(2, 1, 2)
-    plt.plot(gens, history["archive_size"], label="Archive size")
-    plt.plot(gens, history["goal_count"], label="Goals per generation")
+def plot_novelty(best, mean, archive, goals):
+    """
+    Plots best and mean novelty over generations.
+    """
+    plt.figure(figsize=(9, 5))
+    plt.plot(best, label="Best novelty", linewidth=2)
+    plt.plot(mean, label="Mean novelty", linestyle="--")
     plt.xlabel("Generation")
-    plt.ylabel("Count")
-    plt.legend()
+    plt.ylabel("Novelty")
+    plt.title("Maze – Novelty Search")
     plt.grid(True)
-
-    plt.tight_layout()
+    plt.legend()
     plt.show()
 
 
 # ============================================================
-# BUILD TRAINED AGENT FOR MAIN.PY
+# LOAD TRAINED MAZE AGENT (BEST GENOME)
 # ============================================================
 
-def load_trained_maze_agent(map_file=MAP_FILE):
+def load_trained_maze_agent(map_file):
     """
-    Load best genotype from disk, create a MazeLearningAgent in an env,
-    and return (env, [agent]) ready for MotorDeSimulacao.
+    Load best genome from maze_best_genome.txt and create
+    a MazeLearningAgent ready to be simulated.
     """
-    base_env, start_positions, goals, obstacles = load_fixed_map(map_file)
-    start_A = tuple(start_positions["A"])
-    goals = [tuple(g) for g in goals]
+    env, start_positions, goals, obstacles = load_fixed_map(map_file)
+    start_pos = tuple(start_positions["A"])
 
-    genes = load_best_genotype()
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    load_path = os.path.join(base_dir, "maze_best_genome.txt")
 
-    env = World(
-        height=base_env.height,
-        width=base_env.width,
-        goals=goals,
-        obstacles=obstacles,
-        mode="maze"
-    )
+    if not os.path.exists(load_path):
+        raise FileNotFoundError(
+            f"{load_path} not found. Run train_maze() first to create it."
+        )
 
-    agent = MazeLearningAgent("EVO", env, start_pos=start_A, weights=genes)
-    agent.set_mode("test")
+    with open(load_path, "r") as f:
+        genome = [float(x) for x in f.read().strip().split(",")]
+
+    agent = MazeLearningAgent("EVO", env, start_pos, genome)
     env.agents = [agent]
 
     return env, [agent]
-
-
-# ============================================================
-# OPTIONAL: standalone run
-# ============================================================
-
-if __name__ == "__main__":
-    hist = train_maze(MAP_FILE)
-    plot_novelty(hist)
-    # For full visual test, better run via Main.py using MotorDeSimulacao.
