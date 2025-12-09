@@ -97,6 +97,23 @@ class World:
         ]
 
     # ------------------------------------------------------------
+    # CLONE (needed for evolutionary Maze training)
+    # ------------------------------------------------------------
+    def clone(self):
+        """
+        Returns a fresh copy of the world with the same layout,
+        but with no agents and reset step counter.
+        """
+        return World(
+            height=self.height,
+            width=self.width,
+            goals=list(self.goals),
+            obstacles=set(self.obstacles),
+            mode=self.mode,
+        )
+
+
+    # ------------------------------------------------------------
     # DISPLAY (CONSOLE)
     # ------------------------------------------------------------
     def display(self):

@@ -5,6 +5,8 @@ from Environments.Lighthouse import setup_lighthouse
 from Environments.Maze import setup_maze
 from Training.TrainFarol import train_farol, plot_learning_curve, load_trained_agent
 from Environments.Lighthouse import load_fixed_map
+from Training.TrainMaze import train_maze, plot_novelty as plot_maze_novelty, load_trained_maze_agent
+
 import os
 
 
@@ -78,13 +80,13 @@ if __name__ == "__main__":
     if ambiente == "farol":
 
         # ==========================================
-        # SPECIAL BRANCH: RL LEARNING MODE
+        # SPECIAL BRANCH: FAROL Q-LEARNING
         # ==========================================
         if tipo_agente == "learning" and tipo_mapa == "fixed":
             print("\n🔵 Iniciando TREINO Q-LEARNING para FAROL...\n")
 
             BASE = os.path.dirname(__file__)
-            map_path = os.path.join(BASE, "Resources", "farol_map_3.json")
+            map_path = os.path.join(BASE, "Resources", "farol_map_1.json")
 
             # 1️⃣ TRAIN
             rewards = train_farol(map_path)
@@ -101,11 +103,11 @@ if __name__ == "__main__":
             motor = MotorDeSimulacao(env, agents)
             motor.executa()
 
-            exit(0)  # PREVENT continuing to normal fixed logic        # ==========================================
+            exit(0)
+
         # NORMAL FIXED / RANDOM FAROL (unchanged)
-        # ==========================================
         if tipo_mapa == "fixed":
-            json_file = "Resources/farol_map_3.json"
+            json_file = "Resources/farol_map_1.json"
         else:
             json_file = None
 
@@ -113,14 +115,60 @@ if __name__ == "__main__":
                                        map_type=tipo_mapa,
                                        json_file=json_file)
 
+
     elif ambiente == "maze":
+
+        # ==========================================
+
+        # SPECIAL BRANCH: NOVELTY SEARCH EVOLUTION
+
+        # ==========================================
+
+        if tipo_agente == "learning" and tipo_mapa == "fixed":
+            print("\n🔵 Iniciando EVOLUÇÃO (NOVELTY SEARCH) para MAZE...\n")
+
+            BASE = os.path.dirname(__file__)
+
+            map_path = os.path.join(BASE, "Resources", "maze_map_1.json")
+
+            # Train
+
+            best, mean, archive, goals = train_maze(map_path)
+
+            # Plot
+
+            plot_maze_novelty(best, mean, archive, goals)
+
+            print("\n🟢 Testando o MELHOR AGENTE evoluído no MAZE...\n")
+
+            # Load best individual
+
+            env, agents = load_trained_maze_agent(map_path)
+
+            motor = MotorDeSimulacao(env, agents)
+
+            motor.executa()
+
+            exit(0)
+
+        # ==================================================
+
+        # NORMAL FIXED / RANDOM MAZE (unchanged)
+
+        # ==================================================
+
         if tipo_mapa == "fixed":
+
             json_file = "Resources/maze_map_1.json"
+
         else:
+
             json_file = None
 
         env, agents = setup_maze(agent_type=tipo_agente,
+
                                  map_type=tipo_mapa,
+
                                  json_file=json_file)
 
     else:
