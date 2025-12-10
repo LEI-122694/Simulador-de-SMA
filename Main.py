@@ -63,7 +63,7 @@ if __name__ == "__main__":
     tipo_mapa = "fixed"
 
     # Ambiente: "farol" ou "maze"
-    ambiente = "farol"
+    ambiente = "maze"
 
     # ---------------------------------------------------
     # REGRAS DE VALIDAÇÃO
@@ -129,15 +129,13 @@ if __name__ == "__main__":
 
             BASE = os.path.dirname(__file__)
 
-            map_path = os.path.join(BASE, "Resources", "maze_map_1.json")
+            map_path = os.path.join(BASE, "Resources", "maze_map_2.json")
 
             # Train
-
-            best, mean, archive, goals = train_maze(map_path)
+            best, mean, archive, goals, reached_list = train_maze(map_path)
 
             # Plot
-
-            plot_maze_novelty(best, mean, archive, goals)
+            plot_maze_novelty(best, mean, archive, goals, reached_list)
 
             print("\n🟢 Testando o MELHOR AGENTE evoluído no MAZE...\n")
 
