@@ -86,7 +86,7 @@ if __name__ == "__main__":
             print("\n🔵 Iniciando TREINO Q-LEARNING para FAROL...\n")
 
             BASE = os.path.dirname(__file__)
-            map_path = os.path.join(BASE, "Resources", "farol_map_1.json")
+            map_path = os.path.join(BASE, "Resources", "farol_map_2.json")
 
             # 1️⃣ TRAIN
             rewards = train_farol(map_path)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
         # NORMAL FIXED / RANDOM FAROL (unchanged)
         if tipo_mapa == "fixed":
-            json_file = "Resources/farol_map_1.json"
+            json_file = "Resources/farol_map_2.json"
         else:
             json_file = None
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
             BASE = os.path.dirname(__file__)
 
-            map_path = os.path.join(BASE, "Resources", "maze_map_2.json")
+            map_path = os.path.join(BASE, "Resources", "maze_map_1.json")
 
             # Train
             best, mean, archive, goals, reached_list = train_maze(map_path)

@@ -17,8 +17,8 @@ MAP_FILE = os.path.join(BASE_DIR, "Resources", "farol_map_1.json")
 # RL HYPERPARAMETERS
 # ============================================================
 
-EPISODES = 80
-MAX_STEPS = 200
+EPISODES = 200
+MAX_STEPS = 250
 
 ALPHA = 0.3
 GAMMA = 0.95

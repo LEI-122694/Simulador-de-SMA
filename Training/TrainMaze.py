@@ -14,7 +14,7 @@ from Agents.MazeLearningAgent import MazeLearningAgent
 # ============================================================
 
 POP_SIZE        = 40
-GENERATIONS     = 150
+GENERATIONS     = 80
 STEPS_PER_AGENT = 100
 
 K_NEIGHBORS     = 10
