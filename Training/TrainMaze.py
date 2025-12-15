@@ -23,7 +23,8 @@ MUTATION_STD    = 0.60
 
 ARCHIVE_ADD_TOP = 5
 
-ALPHA = 0.05  # peso da novelty vs fitness
+ALPHA = 0.7  # peso da novelty vs fitness
+ALPHA_DECAY = 0.98
 
 # ============================================================
 # BEHAVIOUR CHARACTERISATION
@@ -36,7 +37,7 @@ def behaviour_vector(env, agent):
 # FITNESS (recompensa chegar ao objetivo + penalização por ciclos)
 # ============================================================
 
-def fitness_of(agent, visited_cells, steps, goal_reward=20.0, new_cell_reward=0.5, repeat_penalty=0.2):
+def fitness_of(agent, visited_cells, steps, goal_reward=50.0, new_cell_reward=0.5, repeat_penalty=0.2):
     """
     Fitness SEM usar distância ao objetivo.
     - Recompensa chegar ao objetivo.
@@ -119,6 +120,7 @@ def mutate_genome(parent):
 # ============================================================
 
 def train_maze(map_file):
+    alpha = ALPHA
     template_env, start_positions, goals, _ = load_fixed_map(map_file)
     start_pos = tuple(start_positions["A"])
     goal = goals[0]
@@ -166,7 +168,7 @@ def train_maze(map_file):
         hybrid_scores = []
         for i, agent in enumerate(agents_list):
             fit = fitness_of(agent, visited_list[i], steps_list[i])
-            hybrid = ALPHA * novelties[i] + (1 - ALPHA) * fit
+            hybrid = alpha * novelties[i] + (1 - alpha) * fit
             hybrid_scores.append(hybrid)
 
         # Stats
@@ -192,10 +194,10 @@ def train_maze(map_file):
 
         # Selection & reproduction
         sorted_parents = sorted(range(len(population)), key=lambda i: hybrid_scores[i], reverse=True)
-        PARENTS = 10
+        PARENTS = 12
         parents = [population[i] for i in sorted_parents[:PARENTS]]
 
-        ELITE = 10
+        ELITE = 8
         new_population = [population[i][:] for i in sorted_parents[:ELITE]]
 
         while len(new_population) < POP_SIZE:
@@ -204,6 +206,8 @@ def train_maze(map_file):
             new_population.append(c)
 
         population = new_population
+
+        alpha *= ALPHA_DECAY
 
     # Save best genome
     base_dir = os.path.dirname(os.path.dirname(__file__))

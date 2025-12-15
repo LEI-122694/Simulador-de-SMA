@@ -63,7 +63,7 @@ if __name__ == "__main__":
     tipo_mapa = "fixed"
 
     # Ambiente: "farol" ou "maze"
-    ambiente = "farol"
+    ambiente = "maze"
 
     # ---------------------------------------------------
     # REGRAS DE VALIDAÇÃO
