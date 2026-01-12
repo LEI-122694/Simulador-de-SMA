@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from Environments.Lighthouse import load_fixed_map
-from Agents.LighthouseFixedAgent import LighthouseFixedAgent
+from Agents.Fixed.LighthouseFixedAgent import LighthouseFixedAgent
 from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
 
 # ==================================================

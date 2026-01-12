@@ -11,7 +11,7 @@ import os
 
 
 class MotorDeSimulacao:
-    def __init__(self, env, agents, delay=0.2, max_steps=250):
+    def __init__(self, env, agents, delay=0.4, max_steps=250):
         self.env = env
         self.agents = agents
         self.delay = delay
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     tipo_mapa = "fixed"
 
     # Ambiente: "farol" ou "maze"
-    ambiente = "farol"
+    ambiente = "maze"
 
     # ---------------------------------------------------
     # REGRAS DE VALIDAÇÃO
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
             BASE = os.path.dirname(__file__)
 
-            map_path = os.path.join(BASE, "Resources", "maze_map_1.json")
+            map_path = os.path.join(BASE, "Resources", "maze_map_2.json")
 
             # Train
             best, mean, archive, goals, reached_list = train_maze(map_path)
