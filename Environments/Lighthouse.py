@@ -5,7 +5,7 @@ from collections import deque
 
 from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
 from Environments.World import World
-from Agents.LighthouseFixedAgent import LighthouseFixedAgent
+from Agents.Fixed.LighthouseFixedAgent import LighthouseFixedAgent
 
 
 # ---------------------------------------------------------

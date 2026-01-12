@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from Environments.Maze import load_fixed_map
-from Agents.MazeFixedAgent import MazeFixedAgent
+from Agents.Fixed.MazeFixedAgent import MazeFixedAgent
 from Agents.MazeLearningAgent import MazeLearningAgent
 
 # ==================================================
