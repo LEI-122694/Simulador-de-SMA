@@ -4,8 +4,8 @@ from Agents.Agent import Agent
 class LearningAgent(Agent):
     """
     Generic learning agent:
-      - adapter defines state/actions/reward
-      - brain decides + learns
+      - adapter defines state/actions/reward/terminal
+      - brain decides + (optional) learns
     """
 
     def __init__(self, name, env, start_pos, adapter, brain):
@@ -22,13 +22,31 @@ class LearningAgent(Agent):
         self.reached_goal = False
 
     def comunica(self, mensagem, de_agente):
-        # keep empty unless you need comms later
         pass
 
+    # ------------------------------------------------------------
+    # Important: consistent reset between episodes
+    # ------------------------------------------------------------
+    def episode_reset(self):
+        self.current_obs = None
+        self.state = None
+        self.prev_state = None
+        self.prev_action = None
+        self.last_action = None
+        self.reached_goal = False
+
+        # reward shapers may use this
+        if hasattr(self, "visited_positions"):
+            self.visited_positions.clear()
+
+        # recurrent genome brain
+        if hasattr(self.brain, "reset") and callable(getattr(self.brain, "reset")):
+            self.brain.reset()
+
+    # ------------------------------------------------------------
     def observacao(self, obs):
         self.current_obs = obs
         self.state = self.adapter.build_state(self, obs, self.env)
-
         if self.adapter.is_terminal(self, obs, self.env):
             self.reached_goal = True
 
@@ -42,7 +60,6 @@ class LearningAgent(Agent):
 
         action = self.brain.select_action(self.state, valid, mode=self.mode)
 
-        # track for adapter + RL/evo
         self.prev_state = self.state
         self.prev_action = action
         self.last_action = action
@@ -50,11 +67,9 @@ class LearningAgent(Agent):
         return self.adapter.action_to_move(self, action)
 
     def avaliacaoEstadoAtual(self, recompensa):
-        # only RL brains will implement update; evo brains can ignore
         if (
-            hasattr(self.brain, "update") and
-            self.prev_state is not None and
-            self.prev_action is not None
+            hasattr(self.brain, "update") and callable(getattr(self.brain, "update")) and
+            self.prev_state is not None and self.prev_action is not None
         ):
             done = self.reached_goal
             self.brain.update(self.prev_state, self.prev_action, recompensa, self.state, done)

@@ -1,13 +1,21 @@
 # Main.py
+import os
 import time
 
-from Environments.Lighthouse import setup_lighthouse
-from Environments.Maze import setup_maze
-from Training.TrainFarol import train_farol, plot_learning_curve, load_trained_agent
-from Environments.Lighthouse import load_fixed_map
-from Training.TrainMaze import train_maze, plot_novelty as plot_maze_novelty, load_trained_maze_agent
+from Environments.Lighthouse import setup_lighthouse, load_fixed_map as load_farol
+from Environments.Maze import setup_maze, load_fixed_map as load_maze
 
-import os
+from Agents.LearningAgent import LearningAgent
+
+from Learning.Adapters.FarolAdapter import FarolAdapter
+from Learning.Adapters.MazeAdapter import MazeAdapter
+from Learning.Brains.QLearningBrain import QLearningBrain
+from Learning.Brains.GenomeBrain import GenomeBrain
+
+from Training.TrainQLearningLighthouse import train_qlearning_lighthouse
+from Training.TrainQLearningMaze import train_qlearning_maze
+from Training.TrainEvolutionLighthouse import train_evolution_farol
+from Training.TrainEvolutionMaze import train_evolution_maze
 
 
 class MotorDeSimulacao:
@@ -17,15 +25,11 @@ class MotorDeSimulacao:
         self.delay = delay
         self.max_steps = max_steps
 
-    def listaAgentes(self):
-        return self.agents
-
     def executa(self):
         for step in range(self.max_steps):
             print(f"\n--- Step {step+1} ---")
             self.env.display()
 
-            # Cada agente age
             for agent in self.agents:
                 obs = self.env.observacaoPara(agent)
                 agent.observacao(obs)
@@ -47,141 +51,131 @@ class MotorDeSimulacao:
         print("⏹ Limite de passos atingido.")
 
 
-
 # ---------------------------------------------------
-# NOVA EXECUÇÃO CONFIGURÁVEL
+def build_learning_agent_farol(env, start_pos, metodo):
+    adapter = FarolAdapter()
+    base_dir = os.path.dirname(__file__)
+
+    if metodo == "qlearning":
+        brain = QLearningBrain()
+        brain.load(os.path.join(base_dir, "policy_farol.json"))
+        agent = LearningAgent("Q", env, start_pos, adapter, brain)
+        agent.set_mode("test")
+        return agent
+
+    if metodo == "evolution":
+        genome_path = os.path.join(base_dir, "farol_best_genome.txt")
+        with open(genome_path, "r") as f:
+            genome = [float(x) for x in f.read().strip().split(",")]
+
+        brain = GenomeBrain(
+            genome=genome,
+            inputs=adapter.observation_size(),
+            hidden=6,
+            outputs=adapter.action_size(),
+            action_order=adapter.ACTIONS
+        )
+        agent = LearningAgent("EVO", env, start_pos, adapter, brain)
+        agent.set_mode("test")
+        return agent
+
+    raise ValueError("metodo_aprendizagem deve ser 'qlearning' ou 'evolution'")
+
+
+def build_learning_agent_maze(env, start_pos, metodo):
+    adapter = MazeAdapter()
+    base_dir = os.path.dirname(__file__)
+
+    if metodo == "qlearning":
+        brain = QLearningBrain()
+        brain.load(os.path.join(base_dir, "policy_maze.json"))
+        agent = LearningAgent("Q", env, start_pos, adapter, brain)
+        agent.set_mode("test")
+        return agent
+
+    if metodo == "evolution":
+        genome_path = os.path.join(base_dir, "maze_best_genome.txt")
+        with open(genome_path, "r") as f:
+            genome = [float(x) for x in f.read().strip().split(",")]
+
+        brain = GenomeBrain(
+            genome=genome,
+            inputs=adapter.observation_size(),
+            hidden=6,
+            outputs=adapter.action_size(),
+            action_order=adapter.ACTIONS
+        )
+        agent = LearningAgent("EVO", env, start_pos, adapter, brain)
+        agent.set_mode("test")
+        return agent
+
+    raise ValueError("metodo_aprendizagem deve ser 'qlearning' ou 'evolution'")
+
+
 # ---------------------------------------------------
 if __name__ == "__main__":
 
-    # ---------------------------------------------------
-    # CONFIGURAÇÃO DO UTILIZADOR
-    # ---------------------------------------------------
-    # Tipo de agente: "fixed" ou "learning"
-    tipo_agente = "learning"
+    # USER CONFIG
+    tipo_agente = "learning"          # "fixed" | "learning"
+    tipo_mapa = "fixed"               # "fixed" | "random"
+    ambiente = "farol"                 # "farol" | "maze"
 
-    # Tipo de mapa: "fixed" ou "random"
-    tipo_mapa = "fixed"
+    metodo_aprendizagem = "qlearning" # "qlearning" | "evolution"
+    treinar_antes = True              # True = train then test
 
-    # Ambiente: "farol" ou "maze"
-    ambiente = "maze"
-
-    # ---------------------------------------------------
-    # REGRAS DE VALIDAÇÃO
-    # ---------------------------------------------------
+    # Validation
     if tipo_agente == "learning" and tipo_mapa == "random":
-        print("ERRO: O modo LEARNING só pode ser usado com MAPA FIXO!")
-        print("    Mude para: tipo_mapa = 'fixed'")
-        exit(1)
+        raise ValueError("LEARNING só pode ser usado com MAPA FIXO.")
 
+    if tipo_agente == "fixed" and metodo_aprendizagem not in ("qlearning", "evolution"):
+        raise ValueError("metodo_aprendizagem inválido.")
 
-    # ---------------------------------------------------
-    # SELEÇÃO DO AMBIENTE E MAPA
-    # ---------------------------------------------------
+    base_dir = os.path.dirname(__file__)
+
+    # FAROL
     if ambiente == "farol":
+        map_path = os.path.join(base_dir, "Resources", "farol_map_2.json")
 
-        # ==========================================
-        # SPECIAL BRANCH: FAROL Q-LEARNING
-        # ==========================================
-        if tipo_agente == "learning" and tipo_mapa == "fixed":
-            print("\n🔵 Iniciando TREINO Q-LEARNING para FAROL...\n")
+        if tipo_agente == "learning":
+            if treinar_antes:
+                if metodo_aprendizagem == "qlearning":
+                    print("\n🔵 TREINO Q-LEARNING (FAROL)\n")
+                    train_qlearning_lighthouse(map_path)
+                else:
+                    print("\n🔵 TREINO EVOLUTION (FAROL)\n")
+                    train_evolution_farol(map_path)
 
-            BASE = os.path.dirname(__file__)
-            map_path = os.path.join(BASE, "Resources", "farol_map_2.json")
-
-            # 1️⃣ TRAIN
-            rewards = train_farol(map_path)
-
-            # 2️⃣ SHOW LEARNING CURVE
-            plot_learning_curve(rewards)
-
-            print("\n🟢 Testando POLÍTICA TREINADA no ambiente FAROL...\n")
-
-            # 3️⃣ LOAD TRAINED AGENT
-            env, agents = load_trained_agent(map_path)
-
-            # 4️⃣ RUN SIMULATION using your normal engine
-            motor = MotorDeSimulacao(env, agents)
-            motor.executa()
-
-            exit(0)
-
-        # NORMAL FIXED / RANDOM FAROL (unchanged)
-        if tipo_mapa == "fixed":
-            json_file = "Resources/farol_map_2.json"
+            env, starts, _, _ = load_farol(map_path)
+            start_pos = tuple(starts["A"])
+            agent = build_learning_agent_farol(env, start_pos, metodo_aprendizagem)
+            agents = [agent]
         else:
-            json_file = None
+            json_file = "Resources/farol_map_2.json" if tipo_mapa == "fixed" else None
+            env, agents = setup_lighthouse(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
-        env, agents = setup_lighthouse(agent_type=tipo_agente,
-                                       map_type=tipo_mapa,
-                                       json_file=json_file)
-
-
+    # MAZE
     elif ambiente == "maze":
+        map_path = os.path.join(base_dir, "Resources", "maze_map_2.json")
 
-        # ==========================================
+        if tipo_agente == "learning":
+            if treinar_antes:
+                if metodo_aprendizagem == "qlearning":
+                    print("\n🔵 TREINO Q-LEARNING (MAZE)\n")
+                    train_qlearning_maze(map_path)
+                else:
+                    print("\n🔵 TREINO EVOLUTION (MAZE)\n")
+                    train_evolution_maze(map_path)
 
-        # SPECIAL BRANCH: NOVELTY SEARCH EVOLUTION
-
-        # ==========================================
-
-        if tipo_agente == "learning" and tipo_mapa == "fixed":
-            print("\n🔵 Iniciando EVOLUÇÃO (NOVELTY SEARCH) para MAZE...\n")
-
-            BASE = os.path.dirname(__file__)
-
-            map_path = os.path.join(BASE, "Resources", "maze_map_2.json")
-
-            # Train
-            best, mean, archive, goals, reached_list = train_maze(map_path)
-
-            # Plot
-            plot_maze_novelty(best, mean, archive, goals, reached_list)
-
-            print("\n🟢 Testando o MELHOR AGENTE evoluído no MAZE...\n")
-
-            # Load best individual
-
-            env, agents = load_trained_maze_agent(map_path)
-
-            motor = MotorDeSimulacao(env, agents)
-
-            motor.executa()
-
-            exit(0)
-
-        # ==================================================
-
-        # NORMAL FIXED / RANDOM MAZE (unchanged)
-
-        # ==================================================
-
-        if tipo_mapa == "fixed":
-
-            json_file = "Resources/maze_map_1.json"
-
+            env, starts, _, _ = load_maze(map_path)
+            start_pos = tuple(starts["A"])
+            agent = build_learning_agent_maze(env, start_pos, metodo_aprendizagem)
+            agents = [agent]
         else:
-
-            json_file = None
-
-        env, agents = setup_maze(agent_type=tipo_agente,
-
-                                 map_type=tipo_mapa,
-
-                                 json_file=json_file)
+            json_file = "Resources/maze_map_2.json" if tipo_mapa == "fixed" else None
+            env, agents = setup_maze(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
     else:
         raise ValueError("Ambiente inválido! Escolher 'farol' ou 'maze'.")
 
-
-    # ---------------------------------------------------
-    # APLICAR MODO AOS AGENTES
-    # ---------------------------------------------------
-    if tipo_agente != "learning":  # RL already sets its own mode
-        for agent in agents:
-            agent.set_mode("train" if tipo_agente == "learning" else "test")
-
-    # ---------------------------------------------------
-    # EXECUTAR
-    # ---------------------------------------------------
     motor = MotorDeSimulacao(env, agents)
     motor.executa()
