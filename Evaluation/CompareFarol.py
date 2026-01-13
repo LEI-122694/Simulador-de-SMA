@@ -1,89 +1,134 @@
+# Evaluation/CompareFarol.py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 from Environments.Lighthouse import load_fixed_map
 from Agents.Fixed.LighthouseFixedAgent import LighthouseFixedAgent
-from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
+from Agents.LearningAgent import LearningAgent
 
-# ==================================================
-# CONFIGURATION
-# ==================================================
-FIXED_RUNS = 30          # stochastic baseline
-MAX_STEPS = 200
+from Learning.Brains.QLearningBrain import QLearningBrain
+from Learning.Brains.GenomeBrain import GenomeBrain
+from Learning.Adapters.FarolAdapter import FarolAdapter
 
-BASE_DIR  = os.path.dirname(os.path.dirname(__file__))
+# -----------------------------
+RUNS = 30
+MAX_STEPS = 250
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 MAP_FILE = os.path.join(BASE_DIR, "Resources", "farol_map_2.json")
-POLICY   = os.path.join(BASE_DIR, "policy_farol.json")
+POLICY_FILE = os.path.join(BASE_DIR, "policy_farol.json")
+GENOME_FILE = os.path.join(BASE_DIR, "farol_best_genome.txt")
 
 
-# ==================================================
-def run_episode(agent):
-    env = agent.env
+def run_episode(env, agent, max_steps=MAX_STEPS):
+    env.agents = [agent]
+    if hasattr(agent, "episode_reset"):
+        agent.episode_reset()
 
-    for step in range(1, MAX_STEPS + 1):
+    for step in range(1, max_steps + 1):
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
 
-        action = agent.age()
-        env.agir(action, agent)
+        move = agent.age()
+        env.agir(move, agent)
         env.atualizacao()
 
+        # refresh obs so terminal is detected correctly
+        obs2 = env.observacaoPara(agent)
+        agent.observacao(obs2)
+
         if agent.reached_goal:
-            return step
+            return True, step
 
-    return MAX_STEPS
+    return False, max_steps
 
 
-# ==================================================
-def evaluate_fixed():
+def eval_fixed():
     steps = []
-
-    for _ in range(FIXED_RUNS):
+    success = 0
+    for _ in range(RUNS):
         env, starts, _, _ = load_fixed_map(MAP_FILE)
         agent = LighthouseFixedAgent("FIXED", env, tuple(starts["A"]))
         agent.set_mode("test")
-        env.agents = [agent]
-
-        steps.append(run_episode(agent))
-
-    return steps
-
-
-# ==================================================
-def evaluate_learned_once():
-    env, starts, _, _ = load_fixed_map(MAP_FILE)
-    agent = LighthouseQLearningAgent("RL", env, tuple(starts["A"]))
-    agent.load_policy(POLICY)
-    agent.set_mode("test")
-    env.agents = [agent]
-
-    return run_episode(agent)
+        ok, st = run_episode(env, agent)
+        success += int(ok)
+        steps.append(st)
+    return success, steps
 
 
-# ==================================================
+def eval_q():
+    adapter = FarolAdapter()
+    brain = QLearningBrain()
+    brain.load(POLICY_FILE)
+
+    steps = []
+    success = 0
+    for _ in range(RUNS):
+        env, starts, _, _ = load_fixed_map(MAP_FILE)
+        agent = LearningAgent("Q", env, tuple(starts["A"]), adapter, brain)
+        agent.set_mode("test")
+        ok, st = run_episode(env, agent)
+        success += int(ok)
+        steps.append(st)
+    return success, steps
+
+
+def eval_evo():
+    adapter = FarolAdapter()
+
+    if not os.path.exists(GENOME_FILE):
+        raise FileNotFoundError(f"Missing {GENOME_FILE}. Train evolution first.")
+
+    with open(GENOME_FILE, "r") as f:
+        genome = [float(x) for x in f.read().strip().split(",")]
+
+    steps = []
+    success = 0
+    for _ in range(RUNS):
+        env, starts, _, _ = load_fixed_map(MAP_FILE)
+
+        brain = GenomeBrain(
+            genome=genome,
+            inputs=adapter.observation_size(),
+            hidden=6,
+            outputs=adapter.action_size(),
+            action_order=adapter.ACTIONS
+        )
+
+        agent = LearningAgent("EVO", env, tuple(starts["A"]), adapter, brain)
+        agent.set_mode("test")
+        ok, st = run_episode(env, agent)
+        success += int(ok)
+        steps.append(st)
+    return success, steps
+
+
+def summarize(label, success, steps):
+    arr = np.array(steps, dtype=float)
+    print(f"\n=== FAROL {label} ===")
+    print(f"Success: {success}/{RUNS} ({100*success/RUNS:.1f}%)")
+    print(f"Avg steps (fail=max): {arr.mean():.1f}  | std: {arr.std():.1f}")
+
+
 if __name__ == "__main__":
+    sF, stF = eval_fixed()
+    sQ, stQ = eval_q()
+    sE, stE = eval_evo()
 
-    fixed_steps   = evaluate_fixed()
-    learned_steps = evaluate_learned_once()
+    summarize("Fixed", sF, stF)
+    summarize("Q-learning", sQ, stQ)
+    summarize("Evolution", sE, stE)
 
-    fixed_mean = float(np.mean(fixed_steps))
-    fixed_std  = float(np.std(fixed_steps))
-
-    print("\n===== FAROL FINAL EVALUATION =====")
-    print(f"Fixed agent   → average steps = {fixed_mean:.1f} ({FIXED_RUNS} runs)")
-    print(f"Learned agent → steps = {learned_steps}")
-
-    # ------------------------------------------------
-    # BAR GRAPH ONLY (NO BOXPLOT)
-    # ------------------------------------------------
-    labels = ["Fixed (avg)", "Learned (1 run)"]
-    values = [fixed_mean, learned_steps]
-    errors = [fixed_std, 0.0]
+    labels = ["Fixed", "Q", "Evo"]
+    means = [np.mean(stF), np.mean(stQ), np.mean(stE)]
+    succs = [sF/RUNS, sQ/RUNS, sE/RUNS]
 
     plt.figure()
-    plt.bar(labels, values)
-    plt.ylabel("Steps to reach lighthouse")
-    plt.title("Farol — Fixed Baseline vs Learned Policy (Test Mode)")
+    plt.bar(labels, means)
+    plt.ylabel("Avg steps (fail=max)")
+    plt.title("Farol — Avg Steps (lower is better)")
     plt.grid(True, axis="y")
     plt.show()
+
+

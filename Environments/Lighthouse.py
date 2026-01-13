@@ -1,12 +1,10 @@
-# Lighthouse.py
+# Environments/Lighthouse.py
 import random
 import json
 from collections import deque
 
-from Agents.LighthouseLearningAgent import LighthouseQLearningAgent
 from Environments.World import World
 from Agents.Fixed.LighthouseFixedAgent import LighthouseFixedAgent
-
 
 # ---------------------------------------------------------
 # CONFIGURAÇÕES DO MAPA
@@ -15,7 +13,6 @@ HEIGHT = 10
 WIDTH = 10
 OBSTACLE_RATIO = 0.30
 MIN_START_DIST = 14
-
 
 
 # ---------------------------------------------------------
@@ -32,15 +29,16 @@ def is_reachable(start, goal, obstacles):
             return True
 
         for nx, ny in [(x-1, y), (x+1, y), (x, y-1), (x, y+1)]:
-            if (0 <= nx < HEIGHT and
+            if (
+                0 <= nx < HEIGHT and
                 0 <= ny < WIDTH and
                 (nx, ny) not in obstacles and
-                (nx, ny) not in visited):
+                (nx, ny) not in visited
+            ):
                 visited.add((nx, ny))
                 q.append((nx, ny))
 
     return False
-
 
 
 # ---------------------------------------------------------
@@ -64,7 +62,6 @@ def load_fixed_map(filename):
     )
 
     return env, data["start_positions"], goals[0], obstacles
-
 
 
 # ---------------------------------------------------------
@@ -120,51 +117,35 @@ def generate_random_map():
     return env, start_positions, goal, obstacles
 
 
-
 # ---------------------------------------------------------
 # 3) SETUP UNIFICADO (usa agent_type + map_type)
+#    Agora: este ficheiro só cria agentes FIXED.
+#    Agentes "learning" são criados no Main.py com LearningAgent.
 # ---------------------------------------------------------
 def setup_lighthouse(agent_type="fixed", map_type="fixed", json_file="Resources/farol_map_1.json"):
     """
-    agent_type = "fixed" ou "learning"
+    agent_type = "fixed"
     map_type   = "fixed" ou "random"
     """
 
-    # ---------------------------------------------------------
-    # REGRA IMPORTANTE
-    # ---------------------------------------------------------
-    if agent_type == "learning" and map_type == "random":
-        raise ValueError("❌ Erro: LearningAgent só pode ser usado com mapa FIXED.")
+    if agent_type != "fixed":
+        raise ValueError(
+            "setup_lighthouse já não constrói agentes 'learning'. "
+            "Use Main.py com LearningAgent para Q-learning/evolution."
+        )
 
-    # ---------------------------------------------------------
     # MAPA
-    # ---------------------------------------------------------
     if map_type == "fixed":
         env, start_positions, goal, obstacles = load_fixed_map(json_file)
-
     elif map_type == "random":
         env, start_positions, goal, obstacles = generate_random_map()
-
     else:
         raise ValueError("map_type deve ser 'fixed' ou 'random'")
 
-
-    # ---------------------------------------------------------
-    # CRIAÇÃO DOS AGENTES
-    # ---------------------------------------------------------
+    # AGENTES FIXOS
     agents = []
-
     for name, pos in start_positions.items():
-
-        if agent_type == "fixed":
-            agent = LighthouseFixedAgent(name, env, start_pos=tuple(pos))
-
-        elif agent_type == "learning":
-            agent = LighthouseQLearningAgent(name, env, start_pos=tuple(pos))
-
-        else:
-            raise ValueError("agent_type deve ser 'fixed' ou 'learning'")
-
+        agent = LighthouseFixedAgent(name, env, start_pos=tuple(pos))
         agents.append(agent)
 
     return env, agents

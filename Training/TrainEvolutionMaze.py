@@ -1,77 +1,167 @@
-# TrainEvolutionMaze.py
-
+# Training/TrainEvolutionMaze.py
+import os
 import random
+import math
+import matplotlib.pyplot as plt
+
 from Learning.Brains.GenomeBrain import GenomeBrain
 from Learning.Adapters.MazeAdapter import MazeAdapter
 from Agents.LearningAgent import LearningAgent
-from Environments.Maze import setup_maze
+from Environments.Maze import load_fixed_map
 
-POP_SIZE = 30
-GENERATIONS = 80
-MAX_STEPS = 200
+POP_SIZE        = 40
+GENERATIONS     = 80
+STEPS_PER_AGENT = 200
 
-def evaluate(env_template, genome):
-    env = env_template.clone()
-    adapter = MazeAdapter()
-    brain = GenomeBrain(genome)
+MUTATION_RATE   = 0.15
+MUTATION_STD    = 0.5
+ELITE_SIZE      = 8
 
-    agent = LearningAgent("EVO", env, start_pos=(0, 0), adapter=adapter, brain=brain)
+
+def fitness_of(agent, total_reward, reached_goal):
+    # Simple: maximize shaped reward; add a bonus if reached
+    return total_reward + (50.0 if reached_goal else 0.0)
+
+
+def mutate(genome):
+    child = []
+    for g in genome:
+        if random.random() < MUTATION_RATE:
+            g += random.gauss(0.0, MUTATION_STD)
+        child.append(g)
+    return child
+
+
+def evaluate_individual(template_env, genome, start_pos, adapter):
+    env = template_env.clone()
+
+    brain = GenomeBrain(
+        genome=genome,
+        inputs=adapter.observation_size(),
+        hidden=6,
+        outputs=adapter.action_size(),
+        action_order=adapter.ACTIONS
+    )
+    brain.reset()
+
+    agent = LearningAgent("EVO", env, start_pos, adapter, brain)
+    agent.set_mode("test")
     env.agents = [agent]
 
-    total_reward = 0
+    total_reward = 0.0
 
-    for step in range(MAX_STEPS):
+    for step in range(1, STEPS_PER_AGENT + 1):
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
 
-        action = agent.age()
-        env.agir(action, agent)
+        move = agent.age()
+        env.agir(move, agent)
         env.atualizacao()
 
+        # S' (important so reward uses updated state/terminal)
         obs2 = env.observacaoPara(agent)
-        reward = adapter.reward(
+        agent.observacao(obs2)
+
+        r = adapter.reward(
             agent,
             agent.prev_state,
             agent.prev_action,
             agent.state,
             obs2,
             step,
-            MAX_STEPS
+            STEPS_PER_AGENT
         )
-
-        total_reward += reward
+        total_reward += r
 
         if agent.reached_goal:
             break
 
-    return total_reward
+    fit = fitness_of(agent, total_reward, agent.reached_goal)
+    return fit, agent.reached_goal
 
 
-def train_evolution_maze():
-    env, _ = setup_maze(agent_type="learning", map_type="fixed")
+def train_evolution_maze(map_file: str):
+    template_env, start_positions, _, _ = load_fixed_map(map_file)
+    start_pos = tuple(start_positions["A"])
 
-    genome_size = GenomeBrain.genome_size()
-    population = [
-        [random.uniform(-1, 1) for _ in range(genome_size)]
-        for _ in range(POP_SIZE)
-    ]
+    adapter = MazeAdapter()
+
+    genome_size = GenomeBrain.genome_size(
+        inputs=adapter.observation_size(),
+        hidden=6,
+        outputs=adapter.action_size()
+    )
+
+    def random_genome():
+        return [random.uniform(-1, 1) for _ in range(genome_size)]
+
+    population = [random_genome() for _ in range(POP_SIZE)]
+
+    best_fitness = []
+    mean_fitness = []
+    reached_list = []
+
+    best_genome = None
+    best_score = -math.inf
 
     for gen in range(GENERATIONS):
-        scored = [(evaluate(env, g), g) for g in population]
-        scored.sort(reverse=True, key=lambda x: x[0])
+        print(f"\n===== MAZE EVO GENERATION {gen+1}/{GENERATIONS} =====")
 
-        print(f"[GEN {gen}] best={scored[0][0]:.2f}")
+        scores = []
+        reached = 0
 
-        elites = [g for _, g in scored[:5]]
-        population = elites[:]
+        for genome in population:
+            fit, ok = evaluate_individual(template_env, genome, start_pos, adapter)
+            scores.append((fit, genome))
+            if ok:
+                reached += 1
 
-        while len(population) < POP_SIZE:
+        scores.sort(key=lambda x: x[0], reverse=True)
+
+        best = scores[0][0]
+        mean = sum(s for s, _ in scores) / len(scores)
+
+        best_fitness.append(best)
+        mean_fitness.append(mean)
+        reached_list.append(reached)
+
+        print(f"  best={best:.2f} | mean={mean:.2f} | reached={reached}/{POP_SIZE}")
+
+        if best > best_score:
+            best_score = best
+            best_genome = scores[0][1][:]
+
+        elites = [g for _, g in scores[:ELITE_SIZE]]
+        new_population = elites[:]
+
+        while len(new_population) < POP_SIZE:
             parent = random.choice(elites)
-            child = parent[:]
-            i = random.randrange(len(child))
-            child[i] += random.uniform(-0.2, 0.2)
-            population.append(child)
+            new_population.append(mutate(parent))
+
+        population = new_population
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    save_path = os.path.join(base_dir, "maze_best_genome.txt")
+    with open(save_path, "w") as f:
+        f.write(",".join(str(x) for x in best_genome))
+
+    print(f"\n✅ Best genome saved to: {save_path}")
+    return best_fitness, mean_fitness, reached_list, save_path
+
+
+def plot_evolution(best, mean, reached):
+    plt.figure(figsize=(10, 5))
+    plt.plot(best, label="Best fitness")
+    plt.plot(mean, label="Mean fitness")
+    plt.plot(reached, label="Reached goal", linestyle=":")
+    plt.legend()
+    plt.grid(True)
+    plt.title("Evolution – Maze")
+    plt.show()
 
 
 if __name__ == "__main__":
-    train_evolution_maze()
+    BASE = os.path.dirname(os.path.dirname(__file__))
+    MAP_FILE = os.path.join(BASE, "Resources", "maze_map_2.json")
+    best, mean, reached, _ = train_evolution_maze(MAP_FILE)
+    plot_evolution(best, mean, reached)
