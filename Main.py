@@ -83,17 +83,23 @@ def build_learning_agent_farol(env, start_pos, metodo):
 
 
 def build_learning_agent_maze(env, start_pos, metodo):
-    adapter = MazeAdapter()
     base_dir = os.path.dirname(__file__)
 
     if metodo == "qlearning":
+        # IMPORTANT: same adapter config used during training
+        adapter = MazeAdapter(include_position=True)
+
         brain = QLearningBrain()
         brain.load(os.path.join(base_dir, "policy_maze.json"))
+
         agent = LearningAgent("Q", env, start_pos, adapter, brain)
         agent.set_mode("test")
         return agent
 
     if metodo == "evolution":
+        # Evolution stays as before (partial observability)
+        adapter = MazeAdapter(include_position=False)
+
         genome_path = os.path.join(base_dir, "maze_best_genome.txt")
         with open(genome_path, "r") as f:
             genome = [float(x) for x in f.read().strip().split(",")]
@@ -120,7 +126,7 @@ if __name__ == "__main__":
     tipo_mapa = "fixed"               # "fixed" | "random"
     ambiente = "farol"                 # "farol" | "maze"
 
-    metodo_aprendizagem = "qlearning" # "qlearning" | "evolution"
+    metodo_aprendizagem = "evolution" # "qlearning" | "evolution"
     treinar_antes = True              # True = train then test
 
     # Validation
@@ -134,7 +140,7 @@ if __name__ == "__main__":
 
     # FAROL
     if ambiente == "farol":
-        map_path = os.path.join(base_dir, "Resources", "farol_map_2.json")
+        map_path = os.path.join(base_dir, "Resources", "farol_map_3.json")
 
         if tipo_agente == "learning":
             if treinar_antes:
@@ -150,12 +156,12 @@ if __name__ == "__main__":
             agent = build_learning_agent_farol(env, start_pos, metodo_aprendizagem)
             agents = [agent]
         else:
-            json_file = "Resources/farol_map_2.json" if tipo_mapa == "fixed" else None
+            json_file = "Resources/farol_map_3.json" if tipo_mapa == "fixed" else None
             env, agents = setup_lighthouse(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
     # MAZE
     elif ambiente == "maze":
-        map_path = os.path.join(base_dir, "Resources", "maze_map_2.json")
+        map_path = os.path.join(base_dir, "Resources", "maze_map_3.json")
 
         if tipo_agente == "learning":
             if treinar_antes:
@@ -171,7 +177,7 @@ if __name__ == "__main__":
             agent = build_learning_agent_maze(env, start_pos, metodo_aprendizagem)
             agents = [agent]
         else:
-            json_file = "Resources/maze_map_2.json" if tipo_mapa == "fixed" else None
+            json_file = "Resources/maze_map_1.json" if tipo_mapa == "fixed" else None
             env, agents = setup_maze(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
     else:

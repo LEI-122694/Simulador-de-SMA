@@ -15,7 +15,8 @@ EPSILON = 0.2
 
 
 def train_qlearning_maze(map_file: str, out_policy: str = "policy_maze.json"):
-    adapter = MazeAdapter()
+    # IMPORTANT: include position for Q-learning (avoids state aliasing)
+    adapter = MazeAdapter(include_position=True)
     brain = QLearningBrain(alpha=ALPHA, gamma=GAMMA, epsilon=EPSILON)
 
     for ep in range(EPISODES):
@@ -57,8 +58,14 @@ def train_qlearning_maze(map_file: str, out_policy: str = "policy_maze.json"):
 
             # update with correct next valid actions
             next_valid = adapter.valid_actions(agent, env, obs2)
-            brain.update(agent.prev_state, agent.prev_action, r, agent.state, agent.reached_goal,
-                        next_valid_actions=next_valid)
+            brain.update(
+                agent.prev_state,
+                agent.prev_action,
+                r,
+                agent.state,
+                agent.reached_goal,
+                next_valid_actions=next_valid
+            )
 
             if agent.reached_goal:
                 break
@@ -75,5 +82,5 @@ def train_qlearning_maze(map_file: str, out_policy: str = "policy_maze.json"):
 
 if __name__ == "__main__":
     BASE = os.path.dirname(os.path.dirname(__file__))
-    MAP_FILE = os.path.join(BASE, "Resources", "maze_map_2.json")
+    MAP_FILE = os.path.join(BASE, "Resources", "maze_map_1.json")
     train_qlearning_maze(MAP_FILE)
