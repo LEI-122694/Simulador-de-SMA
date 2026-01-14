@@ -6,23 +6,32 @@ class MazeAdapter(TaskAdapter):
     """
     Maze adapter:
       - 4-direction actions
-      - numeric state for BOTH Q-learning and GenomeBrain:
-          walls 4 bits
-        + goal-adj 4 bits
-        + last_action one-hot 5 bits (None + 4 actions)
-      => total 13 inputs
+      - state supports BOTH Q-learning and GenomeBrain
 
-    Note: This still uses obs["goals"][0] to compute goal adjacency.
-    If the assignment forbids goal coordinates, we can change World.observacaoPara
-    to provide goal-adj sensor booleans instead.
+    Default (include_position=False):
+        walls 4 bits
+      + goal-adj 4 bits
+      + last_action one-hot 5 bits
+      => 13 inputs
+
+    For Q-learning (include_position=True):
+        (x, y) 2 values
+      + the 13 above
+      => 15 inputs
+
+    Why this exists:
+    - Evolution works fine with partial observability (recurrent memory).
+    - Tabular Q-learning often FAILS without position (state aliasing).
     """
 
     ACTIONS = ["up", "down", "left", "right"]
     ACTION_TO_IDX = {a: i for i, a in enumerate(ACTIONS)}
 
+    def __init__(self, include_position: bool = False):
+        self.include_position = include_position
+
     def observation_size(self) -> int:
-        # 4 walls + 4 goal-adj + 5 last-action one-hot (None + 4)
-        return 13
+        return 15 if self.include_position else 13
 
     def action_size(self) -> int:
         return len(self.ACTIONS)
@@ -51,7 +60,13 @@ class MazeAdapter(TaskAdapter):
         else:
             la[1 + self.ACTION_TO_IDX[last]] = 1.0
 
-        return (wU, wD, wL, wR, gU, gD, gL, gR, *la)
+        core = (wU, wD, wL, wR, gU, gD, gL, gR, *la)
+
+        if self.include_position:
+            # Keep numeric & hashable; Q-learning benefits massively from (x,y)
+            return (float(x), float(y), *core)
+
+        return core
 
     def valid_actions(self, agent, env, obs=None):
         x, y = agent.x, agent.y
@@ -80,10 +95,10 @@ class MazeAdapter(TaskAdapter):
 
     def reward(self, agent, prev_state, action, new_state, obs, step, max_steps):
         """
-        Simple RL reward for maze:
+        RL reward:
           - small step penalty
-          - penalize revisits
-          - big reward on reaching goal
+          - penalize revisits (loop penalty)
+          - big reward on reaching goal (scaled by speed)
         """
         if not hasattr(agent, "visited_positions"):
             agent.visited_positions = set()
