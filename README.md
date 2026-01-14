@@ -10,32 +10,29 @@ Foram implementados dois problemas clássicos:
 
 ## Autores
 
-- **Daniel Gutierrez** — Nº 122694  
 - **Ahmad Hussein** — Nº 111641  
+- **Daniel Gutierrez** — Nº 122694  
 
 ---
 
 ## Requisitos
 
 - Python **3.8** ou superior  
-- Não são necessárias bibliotecas externas (apenas bibliotecas standard do Python)
+- Não são necessárias bibliotecas externas (apenas bibliotecas padrão do Python)
 
 ---
 
 ## Estrutura do Projeto (resumo)
 
-Agents/
-Environments/
-Learning/
-Training/
-Evaluation/
-Resources/
-Main.py
+- Agents/
+- Environments/
+- Learning/
+- Training/
+- Evaluation/
+- Resources/
+- Main.py
 
-yaml
-Copiar código
-
-O ficheiro **`Main.py`** é o ponto de entrada principal do simulador.
+> O ficheiro **`Main.py`** é o ponto de entrada principal do simulador.
 
 ---
 
@@ -45,15 +42,9 @@ A execução do simulador é feita através do ficheiro `Main.py`.
 
 ### Executar o programa
 
-Na raiz do projeto, executar:
-
-```bash
-python Main.py
-Configuração do Simulador
 A configuração é feita diretamente no bloco final do ficheiro Main.py:
 
-python
-Copiar código
+```python
 if __name__ == "__main__":
 
     # USER CONFIG
@@ -63,51 +54,52 @@ if __name__ == "__main__":
 
     metodo_aprendizagem = "evolution" # "qlearning" | "evolution"
     treinar_antes = True              # True = treina antes de testar
-Parâmetros Disponíveis
-Ambiente
-"farol" — Problema do Farol
 
-"maze" — Problema do Labirinto
+```
 
-Tipo de Agente
-"fixed" — Agentes com comportamento pré-programado
+## Parâmetros Disponíveis
 
-"learning" — Agente com aprendizagem (modo teste após treino)
+### Ambiente
+- `"farol"` — Problema do Farol
+- `"maze"` — Problema do Labirinto
 
-Tipo de Mapa
-"fixed" — Mapa definido em ficheiro JSON
+### Tipo de Agente
+- `"fixed"` — Agentes com comportamento pré-programado
+- `"learning"` — Agente com aprendizagem (modo teste após treino)
 
-"random" — Mapa gerado aleatoriamente
-⚠️ Disponível apenas para agentes fixos
+### Tipo de Mapa
+- `"fixed"` — Mapa definido em ficheiro JSON
+- `"random"` — Mapa gerado aleatoriamente  (Disponível apenas para agentes fixos)
 
-Método de Aprendizagem
-"qlearning" — Aprendizagem por reforço (Q-Learning)
+### Método de Aprendizagem
+- `"qlearning"` — Aprendizagem por reforço (Q-Learning)
+- `"evolution"` — Estratégia evolucionária baseada em genoma
 
-"evolution" — Estratégia evolucionária baseada em genoma
+### Treinamento
+- `True` — Executa treino antes do teste
+- `False` — Usa políticas ou genomas previamente guardados
 
-Treino
-True — Executa treino antes do teste
+## Exemplos de Configuração
 
-False — Usa políticas ou genomas previamente guardados
-
-Exemplos de Configuração
-Farol com Q-Learning
-python
-Copiar código
+### Farol com Q-Learning
+```python
 ambiente = "farol"
 tipo_agente = "learning"
 metodo_aprendizagem = "qlearning"
 treinar_antes = True
-Labirinto com Estratégia Evolucionária
-python
-Copiar código
+```
+
+### Labirinto com Estratégia Evolucionária
+```python
 ambiente = "maze"
 tipo_agente = "learning"
 metodo_aprendizagem = "evolution"
 treinar_antes = True
-Agentes Fixos com Mapa Aleatório
-python
-Copiar código
+```
+
+### Agentes Fixos com Mapa Aleatório
+```python
 ambiente = "maze"
 tipo_agente = "fixed"
 tipo_mapa = "random"
+```
