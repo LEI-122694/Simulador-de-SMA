@@ -1,6 +1,6 @@
 # Main.py
-import os
 import time
+import Config as C
 
 from Environments.Lighthouse import setup_lighthouse, load_fixed_map as load_farol
 from Environments.Maze import setup_maze, load_fixed_map as load_maze
@@ -27,15 +27,15 @@ class MotorDeSimulacao:
 
     def executa(self):
         for step in range(self.max_steps):
-            print(f"\n--- Step {step+1} ---")
+            print(f"\n--- Step {step + 1} ---")
             self.env.display()
 
             for agent in self.agents:
                 obs = self.env.observacaoPara(agent)
                 agent.observacao(obs)
 
-                accao = agent.age()
-                self.env.agir(accao, agent)
+                move = agent.age()
+                self.env.agir(move, agent)
 
                 if agent.reached_goal:
                     print(f"🎯 Agente {agent.name} atingiu o objetivo!")
@@ -54,27 +54,27 @@ class MotorDeSimulacao:
 # ---------------------------------------------------
 def build_learning_agent_farol(env, start_pos, metodo):
     adapter = FarolAdapter()
-    base_dir = os.path.dirname(__file__)
 
     if metodo == "qlearning":
         brain = QLearningBrain()
-        brain.load(os.path.join(base_dir, "policy_farol.json"))
+        brain.load(C.FAROL_POLICY)
+
         agent = LearningAgent("Q", env, start_pos, adapter, brain)
         agent.set_mode("test")
         return agent
 
     if metodo == "evolution":
-        genome_path = os.path.join(base_dir, "farol_best_genome.txt")
-        with open(genome_path, "r") as f:
+        with open(C.FAROL_GENOME, "r") as f:
             genome = [float(x) for x in f.read().strip().split(",")]
 
         brain = GenomeBrain(
             genome=genome,
             inputs=adapter.observation_size(),
-            hidden=6,
+            hidden=C.EVO_HIDDEN,
             outputs=adapter.action_size(),
             action_order=adapter.ACTIONS
         )
+
         agent = LearningAgent("EVO", env, start_pos, adapter, brain)
         agent.set_mode("test")
         return agent
@@ -83,34 +83,31 @@ def build_learning_agent_farol(env, start_pos, metodo):
 
 
 def build_learning_agent_maze(env, start_pos, metodo):
-    base_dir = os.path.dirname(__file__)
-
     if metodo == "qlearning":
-        # IMPORTANT: same adapter config used during training
+        # IMPORTANT: must match training state config
         adapter = MazeAdapter(include_position=True)
 
         brain = QLearningBrain()
-        brain.load(os.path.join(base_dir, "policy_maze.json"))
+        brain.load(C.MAZE_POLICY)
 
         agent = LearningAgent("Q", env, start_pos, adapter, brain)
         agent.set_mode("test")
         return agent
 
     if metodo == "evolution":
-        # Evolution stays as before (partial observability)
         adapter = MazeAdapter(include_position=False)
 
-        genome_path = os.path.join(base_dir, "maze_best_genome.txt")
-        with open(genome_path, "r") as f:
+        with open(C.MAZE_GENOME, "r") as f:
             genome = [float(x) for x in f.read().strip().split(",")]
 
         brain = GenomeBrain(
             genome=genome,
             inputs=adapter.observation_size(),
-            hidden=6,
+            hidden=C.EVO_HIDDEN,
             outputs=adapter.action_size(),
             action_order=adapter.ACTIONS
         )
+
         agent = LearningAgent("EVO", env, start_pos, adapter, brain)
         agent.set_mode("test")
         return agent
@@ -123,8 +120,8 @@ if __name__ == "__main__":
 
     # USER CONFIG
     tipo_agente = "learning"          # "fixed" | "learning"
-    tipo_mapa = "random"               # "fixed" | "random"
-    ambiente = "maze"                 # "farol" | "maze"
+    tipo_mapa = "fixed"               # "fixed" | "random"
+    ambiente = "farol"                # "farol" | "maze"
 
     metodo_aprendizagem = "qlearning" # "qlearning" | "evolution"
     treinar_antes = True              # True = train then test
@@ -136,11 +133,10 @@ if __name__ == "__main__":
     if tipo_agente == "fixed" and metodo_aprendizagem not in ("qlearning", "evolution"):
         raise ValueError("metodo_aprendizagem inválido.")
 
-    base_dir = os.path.dirname(__file__)
-
     # FAROL
     if ambiente == "farol":
-        map_path = os.path.join(base_dir, "Resources", "farol_map_2.json")
+        map_path = C.FAROL_MAP
+        max_steps = C.MAX_STEPS_FAROL
 
         if tipo_agente == "learning":
             if treinar_antes:
@@ -156,12 +152,13 @@ if __name__ == "__main__":
             agent = build_learning_agent_farol(env, start_pos, metodo_aprendizagem)
             agents = [agent]
         else:
-            json_file = "Resources/farol_map_2.json" if tipo_mapa == "fixed" else None
+            json_file = map_path if tipo_mapa == "fixed" else None
             env, agents = setup_lighthouse(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
     # MAZE
     elif ambiente == "maze":
-        map_path = os.path.join(base_dir, "Resources", "maze_map_1.json")
+        map_path = C.MAZE_MAP
+        max_steps = C.MAX_STEPS_MAZE
 
         if tipo_agente == "learning":
             if treinar_antes:
@@ -177,11 +174,11 @@ if __name__ == "__main__":
             agent = build_learning_agent_maze(env, start_pos, metodo_aprendizagem)
             agents = [agent]
         else:
-            json_file = "Resources/maze_map_1.json" if tipo_mapa == "fixed" else None
+            json_file = map_path if tipo_mapa == "fixed" else None
             env, agents = setup_maze(agent_type="fixed", map_type=tipo_mapa, json_file=json_file)
 
     else:
         raise ValueError("Ambiente inválido! Escolher 'farol' ou 'maze'.")
 
-    motor = MotorDeSimulacao(env, agents)
+    motor = MotorDeSimulacao(env, agents, max_steps=max_steps)
     motor.executa()

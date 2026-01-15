@@ -15,24 +15,15 @@ from Learning.Brains.GenomeBrain import GenomeBrain
 from Learning.Adapters.FarolAdapter import FarolAdapter
 from Learning.Adapters.MazeAdapter import MazeAdapter
 
-# -----------------------------
-RUNS = 30
-MAX_STEPS_FAROL = 250
-MAX_STEPS_MAZE  = 200
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
-FAROL_MAP = os.path.join(BASE_DIR, "Resources", "farol_map_2.json")
-MAZE_MAP  = os.path.join(BASE_DIR, "Resources", "maze_map_2.json")
-
-FAROL_POLICY = os.path.join(BASE_DIR, "policy_farol.json")
-MAZE_POLICY  = os.path.join(BASE_DIR, "policy_maze.json")
-
-FAROL_GENOME = os.path.join(BASE_DIR, "farol_best_genome.txt")
-MAZE_GENOME  = os.path.join(BASE_DIR, "maze_best_genome.txt")
+from Config import (
+    FAROL_MAP, MAZE_MAP,
+    FAROL_POLICY, MAZE_POLICY,
+    FAROL_GENOME, MAZE_GENOME,
+    RUNS, MAX_STEPS_FAROL, MAX_STEPS_MAZE,
+    EVO_HIDDEN
+)
 
 
-# ==========================================================
 def run_episode(env, agent, max_steps):
     env.agents = [agent]
     if hasattr(agent, "episode_reset"):
@@ -46,7 +37,6 @@ def run_episode(env, agent, max_steps):
         env.agir(move, agent)
         env.atualizacao()
 
-        # refresh obs to catch terminal state reliably
         obs2 = env.observacaoPara(agent)
         agent.observacao(obs2)
 
@@ -56,6 +46,7 @@ def run_episode(env, agent, max_steps):
     return False, max_steps
 
 
+# ---------------- FAROL ----------------
 def eval_farol_fixed():
     steps, succ = [], 0
     for _ in range(RUNS):
@@ -99,7 +90,7 @@ def eval_farol_evo():
         brain = GenomeBrain(
             genome=genome,
             inputs=adapter.observation_size(),
-            hidden=6,
+            hidden=EVO_HIDDEN,
             outputs=adapter.action_size(),
             action_order=adapter.ACTIONS
         )
@@ -112,6 +103,7 @@ def eval_farol_evo():
     return succ, steps
 
 
+# ---------------- MAZE ----------------
 def eval_maze_fixed():
     steps, succ = [], 0
     for _ in range(RUNS):
@@ -125,6 +117,7 @@ def eval_maze_fixed():
 
 
 def eval_maze_q():
+    # IMPORTANT: must match training config
     adapter = MazeAdapter(include_position=True)
     brain = QLearningBrain()
     brain.load(MAZE_POLICY)
@@ -141,7 +134,7 @@ def eval_maze_q():
 
 
 def eval_maze_evo():
-    adapter = MazeAdapter()
+    adapter = MazeAdapter(include_position=False)
     if not os.path.exists(MAZE_GENOME):
         raise FileNotFoundError(f"Missing {MAZE_GENOME}. Train evolution maze first.")
 
@@ -155,7 +148,7 @@ def eval_maze_evo():
         brain = GenomeBrain(
             genome=genome,
             inputs=adapter.observation_size(),
-            hidden=6,
+            hidden=EVO_HIDDEN,
             outputs=adapter.action_size(),
             action_order=adapter.ACTIONS
         )
@@ -174,16 +167,14 @@ def summarize(env_name, label, success, steps):
         "env": env_name,
         "agent": label,
         "success_rate": success / RUNS,
-        "avg_steps": arr.mean(),
-        "std_steps": arr.std(),
+        "avg_steps": float(arr.mean()),
+        "std_steps": float(arr.std()),
     }
 
 
-# ==========================================================
 if __name__ == "__main__":
     results = []
 
-    # FAROL
     sF, stF = eval_farol_fixed()
     sQ, stQ = eval_farol_q()
     sE, stE = eval_farol_evo()
@@ -191,7 +182,6 @@ if __name__ == "__main__":
     results.append(summarize("Farol", "Q",     sQ, stQ))
     results.append(summarize("Farol", "Evo",   sE, stE))
 
-    # MAZE
     sF2, stF2 = eval_maze_fixed()
     sQ2, stQ2 = eval_maze_q()
     sE2, stE2 = eval_maze_evo()
@@ -199,17 +189,14 @@ if __name__ == "__main__":
     results.append(summarize("Maze", "Q",     sQ2, stQ2))
     results.append(summarize("Maze", "Evo",   sE2, stE2))
 
-    # PRINT TABLE
     print("\n================= COMPARISON SUMMARY =================")
     for r in results:
         print(
             f"{r['env']:5s} | {r['agent']:5s} | "
-            f"success={100*r['success_rate']:.1f}% | "
+            f"success={100 * r['success_rate']:.1f}% | "
             f"avg_steps={r['avg_steps']:.1f} ± {r['std_steps']:.1f}"
         )
 
-    # PLOTS (two figures: avg steps + success)
-    # Avg steps grouped by env
     envs = ["Farol", "Maze"]
     agents = ["Fixed", "Q", "Evo"]
 
@@ -219,19 +206,19 @@ if __name__ == "__main__":
                 return r[key]
         return None
 
-    # Avg steps
-    plt.figure()
     x = np.arange(len(agents))
     width = 0.35
 
+    # Avg steps
     farol_means = [get("Farol", a, "avg_steps") for a in agents]
     maze_means  = [get("Maze",  a, "avg_steps") for a in agents]
 
-    plt.bar(x - width/2, farol_means, width, label="Farol")
-    plt.bar(x + width/2, maze_means,  width, label="Maze")
+    plt.figure()
+    plt.bar(x - width / 2, farol_means, width, label="Farol")
+    plt.bar(x + width / 2, maze_means,  width, label="Maze")
     plt.xticks(x, agents)
-    plt.ylabel("Avg steps (fail=max)")
-    plt.title("Avg Steps — Farol vs Maze")
+    plt.ylabel("Avg steps (fail = max)")
+    plt.title("Average Steps — Farol vs Maze")
     plt.grid(True, axis="y")
     plt.legend()
     plt.show()
