@@ -164,6 +164,4 @@ O ficheiro **`Config.py`** centraliza todas as configurações e parâmetros do 
 - ARCHIVE_ADD_TOP, NOVELTY_ALPHA
 
 ### Seleção
--EVO_PARENTS, EVO_ELITE
-
- - Todos os métodos de aprendizagem
+- EVO_PARENTS, EVO_ELITE
