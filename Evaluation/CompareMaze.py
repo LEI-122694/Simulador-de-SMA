@@ -16,7 +16,7 @@ RUNS = 30
 MAX_STEPS = 200
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-MAP_FILE = os.path.join(BASE_DIR, "Resources", "maze_map_2.json")
+MAP_FILE = os.path.join(BASE_DIR, "Resources", "maze_map_1.json")
 POLICY_FILE = os.path.join(BASE_DIR, "policy_maze.json")
 GENOME_FILE = os.path.join(BASE_DIR, "maze_best_genome.txt")
 
@@ -57,7 +57,7 @@ def eval_fixed():
 
 
 def eval_q():
-    adapter = MazeAdapter()
+    adapter = MazeAdapter(include_position=True)
     brain = QLearningBrain()
     brain.load(POLICY_FILE)
 

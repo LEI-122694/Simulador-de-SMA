@@ -125,7 +125,7 @@ def eval_maze_fixed():
 
 
 def eval_maze_q():
-    adapter = MazeAdapter()
+    adapter = MazeAdapter(include_position=True)
     brain = QLearningBrain()
     brain.load(MAZE_POLICY)
 
