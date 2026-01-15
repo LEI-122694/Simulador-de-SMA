@@ -135,6 +135,35 @@ Este script executa uma comparação abrangente de todos os modelos implementado
 
  - Ambos os ambientes (Farol e Maze)
 
- - Todos os tipos de agentes (fixos e com aprendizagem)
+## Configuração Global (Config.py)
+
+O ficheiro **`Config.py`** centraliza todas as configurações e parâmetros do simulador, incluindo mapas, caminhos de saída e hiperparâmetros dos métodos de aprendizagem. Isto permite modificar rapidamente o comportamento do simulador sem alterar o código principal.  
+
+### Mapas
+-FAROL_MAP
+-MAZE_MAP
+
+### Ficheiros de saída
+-FAROL_POLICY, MAZE_POLICY
+-FAROL_GENOME, MAZE_GENOME
+
+### Avaliação
+-RUNS
+-MAX_STEPS_FAROL, MAX_STEPS_MAZE
+
+### Q-Learning
+-Q_EPISODES, Q_MAX_STEPS
+-Q_ALPHA, Q_GAMMA, Q_EPSILON
+
+### Evolução
+-EVO_POP_SIZE, EVO_GENERATIONS, EVO_STEPS_PER_AGENT
+-EVO_MUTATION_RATE, EVO_MUTATION_STD
+
+### Novelty Search / Híbrido
+-EVO_HIDDEN, K_NEIGHBORS
+-ARCHIVE_ADD_TOP, NOVELTY_ALPHA
+
+### Seleção
+-EVO_PARENTS, EVO_ELITE
 
  - Todos os métodos de aprendizagem
