@@ -103,3 +103,38 @@ ambiente = "maze"
 tipo_agente = "fixed"
 tipo_mapa = "random"
 ```
+
+## Comparação e Avaliação de Modelos
+Para comparar e avaliar o desempenho dos diferentes modelos implementados, existem três scripts específicos:
+
+### 1. Comparação no Problema do Farol
+```bash
+python CompareFarol.py
+```
+Este script executa e compara:
+
+ - Agentes fixos vs agentes com aprendizagem
+
+ - Diferentes métodos de aprendizagem (Q-Learning vs Evolution) no ambiente Farol
+
+### 2. Comparação no Problema do Labirinto
+```bash
+python CompareMaze.py
+```
+Este script executa e compara:
+
+ - Agentes fixos vs agentes com aprendizagem no labirinto
+
+ - Diferentes métodos de aprendizagem no ambiente Maze
+
+### 3. Comparação Completa de Todos os Modelos
+```bash
+python CompareAll.py
+```
+Este script executa uma comparação abrangente de todos os modelos implementados:
+
+ - Ambos os ambientes (Farol e Maze)
+
+ - Todos os tipos de agentes (fixos e com aprendizagem)
+
+ - Todos os métodos de aprendizagem
