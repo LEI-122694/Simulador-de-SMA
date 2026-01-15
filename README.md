@@ -140,7 +140,7 @@ Este script executa uma comparação abrangente de todos os modelos implementado
 O ficheiro **`Config.py`** centraliza todas as configurações e parâmetros do simulador, incluindo mapas, caminhos de saída e hiperparâmetros dos métodos de aprendizagem. Isto permite modificar rapidamente o comportamento do simulador sem alterar o código principal.  
 
 ### Mapas
--FAROL_MAP
+-FAROL_MAP/
 -MAZE_MAP
 
 ### Ficheiros de saída
