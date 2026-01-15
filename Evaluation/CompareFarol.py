@@ -11,14 +11,14 @@ from Learning.Brains.QLearningBrain import QLearningBrain
 from Learning.Brains.GenomeBrain import GenomeBrain
 from Learning.Adapters.FarolAdapter import FarolAdapter
 
-# -----------------------------
-RUNS = 30
-MAX_STEPS = 250
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-MAP_FILE = os.path.join(BASE_DIR, "Resources", "farol_map_2.json")
-POLICY_FILE = os.path.join(BASE_DIR, "policy_farol.json")
-GENOME_FILE = os.path.join(BASE_DIR, "farol_best_genome.txt")
+from Config import (
+    FAROL_MAP as MAP_FILE,
+    FAROL_POLICY as POLICY_FILE,
+    FAROL_GENOME as GENOME_FILE,
+    RUNS,
+    MAX_STEPS_FAROL as MAX_STEPS,
+    EVO_HIDDEN
+)
 
 
 def run_episode(env, agent, max_steps=MAX_STEPS):
@@ -34,7 +34,6 @@ def run_episode(env, agent, max_steps=MAX_STEPS):
         env.agir(move, agent)
         env.atualizacao()
 
-        # refresh obs so terminal is detected correctly
         obs2 = env.observacaoPara(agent)
         agent.observacao(obs2)
 
@@ -45,8 +44,7 @@ def run_episode(env, agent, max_steps=MAX_STEPS):
 
 
 def eval_fixed():
-    steps = []
-    success = 0
+    steps, success = [], 0
     for _ in range(RUNS):
         env, starts, _, _ = load_fixed_map(MAP_FILE)
         agent = LighthouseFixedAgent("FIXED", env, tuple(starts["A"]))
@@ -62,8 +60,7 @@ def eval_q():
     brain = QLearningBrain()
     brain.load(POLICY_FILE)
 
-    steps = []
-    success = 0
+    steps, success = [], 0
     for _ in range(RUNS):
         env, starts, _, _ = load_fixed_map(MAP_FILE)
         agent = LearningAgent("Q", env, tuple(starts["A"]), adapter, brain)
@@ -76,22 +73,20 @@ def eval_q():
 
 def eval_evo():
     adapter = FarolAdapter()
-
     if not os.path.exists(GENOME_FILE):
         raise FileNotFoundError(f"Missing {GENOME_FILE}. Train evolution first.")
 
     with open(GENOME_FILE, "r") as f:
         genome = [float(x) for x in f.read().strip().split(",")]
 
-    steps = []
-    success = 0
+    steps, success = [], 0
     for _ in range(RUNS):
         env, starts, _, _ = load_fixed_map(MAP_FILE)
 
         brain = GenomeBrain(
             genome=genome,
             inputs=adapter.observation_size(),
-            hidden=6,
+            hidden=EVO_HIDDEN,
             outputs=adapter.action_size(),
             action_order=adapter.ACTIONS
         )
@@ -107,7 +102,7 @@ def eval_evo():
 def summarize(label, success, steps):
     arr = np.array(steps, dtype=float)
     print(f"\n=== FAROL {label} ===")
-    print(f"Success: {success}/{RUNS} ({100*success/RUNS:.1f}%)")
+    print(f"Success: {success}/{RUNS} ({100 * success / RUNS:.1f}%)")
     print(f"Avg steps (fail=max): {arr.mean():.1f}  | std: {arr.std():.1f}")
 
 
@@ -121,8 +116,8 @@ if __name__ == "__main__":
     summarize("Evolution", sE, stE)
 
     labels = ["Fixed", "Q", "Evo"]
-    means = [np.mean(stF), np.mean(stQ), np.mean(stE)]
-    succs = [sF/RUNS, sQ/RUNS, sE/RUNS]
+    means  = [np.mean(stF), np.mean(stQ), np.mean(stE)]
+    succs  = [sF / RUNS * 100, sQ / RUNS * 100, sE / RUNS * 100]
 
     plt.figure()
     plt.bar(labels, means)
@@ -130,5 +125,4 @@ if __name__ == "__main__":
     plt.title("Farol — Avg Steps (lower is better)")
     plt.grid(True, axis="y")
     plt.show()
-
 
